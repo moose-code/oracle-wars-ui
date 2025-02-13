@@ -1,0 +1,16 @@
+{
+  "name": "Oracle Wars",
+  "short_name": "Oracle Wars",
+  "description": "Compare Oracle Prices in Real-time",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#030711",
+  "theme_color": "#3b82f6",
+  "icons": [
+    {
+      "src": "/icon",
+      "sizes": "32x32",
+      "type": "image/png"
+    }
+  ]
+}

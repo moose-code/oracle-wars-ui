@@ -9,8 +9,31 @@ const geistMono = GeistMono;
 export const metadata: Metadata = {
   title: "Oracle Wars",
   description: "Compare Oracle Prices in Real-time",
+  keywords: [
+    "oracle",
+    "blockchain",
+    "cryptocurrency",
+    "price feed",
+    "chainlink",
+    "redstone",
+  ],
+  authors: [{ name: "Oracle Wars" }],
+  manifest: "/manifest.json",
   icons: {
     icon: "/icon",
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://oraclewars.xyz",
+    title: "Oracle Wars",
+    description: "Compare Oracle Prices in Real-time",
+    siteName: "Oracle Wars",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Oracle Wars",
+    description: "Compare Oracle Prices in Real-time",
   },
 };
 
