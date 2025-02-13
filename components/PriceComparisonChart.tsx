@@ -146,13 +146,15 @@ const options = {
 };
 
 async function fetchPriceData() {
-  const response = await fetch("http://localhost:8080/v1/graphql", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      query: `
+  const response = await fetch(
+    "https://indexer.dev.hyperindex.xyz/136b503/v1/graphql",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query: `
         query myQuery {
           TransparentUpgradeableProxy_ValueUpdate(limit: 1000, order_by: {updatedAt: desc}) {
             id
@@ -166,8 +168,9 @@ async function fetchPriceData() {
           }
         }
       `,
-    }),
-  });
+      }),
+    }
+  );
 
   return response.json();
 }
