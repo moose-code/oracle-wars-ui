@@ -86,40 +86,47 @@ const options = {
     legend: {
       position: "top" as const,
       labels: {
-        boxWidth: 10,
-        padding: 10,
+        boxWidth: 12,
+        padding: 15,
         font: {
           size: 12,
         },
       },
     },
     tooltip: {
+      padding: 10,
+      backgroundColor: "rgba(0, 0, 0, 0.8)",
+      titleFont: {
+        size: 12,
+      },
+      bodyFont: {
+        size: 12,
+      },
       callbacks: {
         title: (context: any) => {
-          return format(new Date(context[0].parsed.x), "MMM d, yyyy HH:mm:ss");
+          return format(context[0].parsed.x, "PPp");
         },
       },
     },
     zoom: {
+      pan: {
+        enabled: true,
+        mode: "x" as const,
+      },
       zoom: {
         wheel: {
           enabled: true,
-          modifierKey: "ctrl",
         },
         pinch: {
           enabled: true,
         },
-        mode: "x",
+        mode: "x" as const,
         drag: {
           enabled: false,
         },
       },
-      pan: {
-        enabled: true,
-        mode: "x",
-      },
       limits: {
-        y: { min: 0 },
+        x: { min: "original" as const, max: "original" as const },
       },
     },
   },
@@ -127,22 +134,17 @@ const options = {
     x: {
       type: "time" as const,
       time: {
-        unit: "minute",
-        displayFormats: {
-          minute: "MMM d, HH:mm",
-        },
+        unit: "hour" as const,
       },
+      display: true,
       title: {
         display: true,
-        text: "Time",
+        text: "Time (UTC)",
       },
       ticks: {
         font: {
-          size: 8,
+          size: 10,
         },
-        maxRotation: 45,
-        minRotation: 45,
-        autoSkip: true,
         maxTicksLimit: 8,
         padding: 5,
       },
