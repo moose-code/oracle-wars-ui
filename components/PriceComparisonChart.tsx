@@ -15,20 +15,25 @@ import {
 import { Line } from "react-chartjs-2";
 import { format } from "date-fns";
 import "chartjs-adapter-date-fns";
-import zoomPlugin from "chartjs-plugin-zoom";
 import React from "react";
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  TimeScale,
-  zoomPlugin
-);
+// Only import and register zoom plugin on client side
+let zoomPlugin;
+if (typeof window !== "undefined") {
+  zoomPlugin = require("chartjs-plugin-zoom").default;
+
+  ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend,
+    TimeScale,
+    zoomPlugin
+  );
+}
 
 const watermarkPlugin = {
   id: "watermark",
@@ -49,18 +54,7 @@ const watermarkPlugin = {
   },
 };
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  TimeScale,
-  zoomPlugin,
-  watermarkPlugin
-);
+ChartJS.register(watermarkPlugin);
 
 const options = {
   responsive: true,
@@ -108,12 +102,22 @@ const options = {
       time: {
         unit: "minute",
         displayFormats: {
-          minute: "EEE, MMM d, yyyy HH:mm:ss",
+          minute: "MMM d, HH:mm",
         },
       },
       title: {
         display: true,
         text: "Time",
+      },
+      ticks: {
+        font: {
+          size: 10,
+        },
+        maxRotation: 45,
+        minRotation: 45,
+        autoSkip: true,
+        maxTicksLimit: 20,
+        padding: 5,
       },
     },
     y: {
