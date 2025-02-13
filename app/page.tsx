@@ -10,8 +10,8 @@ const queryClient = new QueryClient();
 export default function Home() {
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 sm:p-8">
-        <main className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
+      <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-3 sm:p-6">
+        <main className="max-w-6xl mx-auto space-y-3 sm:space-y-4">
           <div className="flex flex-col items-center relative">
             <div className="absolute right-2 top-2 sm:right-0 sm:top-0">
               <ThemeToggle />
@@ -44,7 +44,7 @@ export default function Home() {
               </span>
             </div>
           </div>
-          <div className="bg-card p-4 sm:p-8 rounded-xl shadow-xl border backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300 hover:shadow-2xl transition-all duration-500 overflow-x-auto">
+          <div className="bg-card p-3 sm:p-6 rounded-xl shadow-xl border backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300 hover:shadow-2xl transition-all duration-500 overflow-x-auto">
             <PriceComparisonChart />
             <div className="absolute bottom-3 right-4 text-xs text-muted-foreground/80 text-right">
               <div className="space-x-1">

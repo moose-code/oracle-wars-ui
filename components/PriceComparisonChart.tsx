@@ -265,11 +265,11 @@ export default function PriceComparisonChart() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
-        <div className="flex gap-2 w-full sm:w-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-2 mb-3">
+        <div className="flex gap-1.5 w-full sm:w-auto">
           <button
             onClick={() => toggleZoomMode("pan")}
-            className={`flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm rounded-md transition-all duration-200 shadow-sm ${
+            className={`flex-1 sm:flex-none px-2 py-1 text-xs sm:text-sm rounded-md transition-all duration-200 shadow-sm ${
               zoomMode === "pan"
                 ? "bg-primary text-primary-foreground shadow-md scale-105"
                 : "bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:scale-105"
@@ -279,7 +279,7 @@ export default function PriceComparisonChart() {
           </button>
           <button
             onClick={() => toggleZoomMode("zoom")}
-            className={`flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm rounded-md transition-all duration-200 shadow-sm ${
+            className={`flex-1 sm:flex-none px-2 py-1 text-xs sm:text-sm rounded-md transition-all duration-200 shadow-sm ${
               zoomMode === "zoom"
                 ? "bg-primary text-primary-foreground shadow-md scale-105"
                 : "bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:scale-105"
@@ -288,22 +288,22 @@ export default function PriceComparisonChart() {
             Box Zoom
           </button>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
+        <div className="flex gap-1.5 w-full sm:w-auto">
           <button
             onClick={() => resetZoom("24h")}
-            className="flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-all duration-200 shadow-sm hover:scale-105"
+            className="flex-1 sm:flex-none px-2 py-1 text-xs sm:text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-all duration-200 shadow-sm hover:scale-105"
           >
             Last 24h
           </button>
           <button
             onClick={() => resetZoom()}
-            className="flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-all duration-200 shadow-sm hover:scale-105"
+            className="flex-1 sm:flex-none px-2 py-1 text-xs sm:text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-all duration-200 shadow-sm hover:scale-105"
           >
             All Data
           </button>
         </div>
       </div>
-      <div className="h-[50vh] sm:h-[60vh]">
+      <div className="h-[45vh] sm:h-[55vh]">
         <Line
           ref={chartRef}
           options={options}
@@ -311,9 +311,9 @@ export default function PriceComparisonChart() {
           className="backdrop-blur-sm"
         />
       </div>
-      <div className="mt-4 sm:mt-6 text-xs sm:text-sm text-muted-foreground/80 text-center space-y-2">
+      <div className="mt-2 sm:mt-3 text-xs text-muted-foreground/80 text-center space-y-1">
         <div className="font-medium">Data updates every 30 seconds</div>
-        <div className="text-xs space-y-1.5 opacity-75">
+        <div className="text-xs space-y-1 opacity-75">
           <p>Pan Mode: Click and drag to move the chart</p>
           <p>Box Zoom: Click and drag to zoom into an area</p>
           <p className="hidden sm:block">
