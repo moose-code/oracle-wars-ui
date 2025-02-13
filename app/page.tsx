@@ -10,14 +10,14 @@ const queryClient = new QueryClient();
 export default function Home() {
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-8">
-        <main className="max-w-6xl mx-auto space-y-6">
+      <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 sm:p-8">
+        <main className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
           <div className="flex flex-col items-center relative">
-            <div className="absolute right-0 top-0">
+            <div className="absolute right-2 top-2 sm:right-0 sm:top-0">
               <ThemeToggle />
             </div>
-            <div className="flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-              <div className="relative w-10 h-10">
+            <div className="flex items-center gap-2 sm:gap-3 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+              <div className="relative w-8 h-8 sm:w-10 sm:h-10">
                 <div className="absolute inset-0 bg-gradient-to-tr from-primary/80 to-primary rounded-lg transform rotate-45"></div>
                 <div className="absolute inset-[3px] bg-background rounded-lg transform rotate-45 flex items-center justify-center">
                   <div className="transform -rotate-45 text-lg font-bold text-primary">
@@ -25,7 +25,7 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-              <h1 className="text-5xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+              <h1 className="text-3xl sm:text-5xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
                 Oracle Wars
               </h1>
             </div>
@@ -44,7 +44,7 @@ export default function Home() {
               </span>
             </div>
           </div>
-          <div className="bg-card p-8 rounded-xl shadow-xl border backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300 hover:shadow-2xl transition-all duration-500">
+          <div className="bg-card p-4 sm:p-8 rounded-xl shadow-xl border backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300 hover:shadow-2xl transition-all duration-500 overflow-x-auto">
             <PriceComparisonChart />
             <div className="absolute bottom-3 right-4 text-xs text-muted-foreground/80 text-right">
               <div className="space-x-1">

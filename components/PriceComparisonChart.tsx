@@ -58,6 +58,7 @@ ChartJS.register(watermarkPlugin);
 
 const options = {
   responsive: true,
+  maintainAspectRatio: false,
   interaction: {
     mode: "index" as const,
     intersect: false,
@@ -65,6 +66,13 @@ const options = {
   plugins: {
     legend: {
       position: "top" as const,
+      labels: {
+        boxWidth: 10,
+        padding: 10,
+        font: {
+          size: 12,
+        },
+      },
     },
     tooltip: {
       callbacks: {
@@ -111,12 +119,12 @@ const options = {
       },
       ticks: {
         font: {
-          size: 10,
+          size: 8,
         },
         maxRotation: 45,
         minRotation: 45,
         autoSkip: true,
-        maxTicksLimit: 20,
+        maxTicksLimit: 8,
         padding: 5,
       },
     },
@@ -127,6 +135,11 @@ const options = {
       title: {
         display: true,
         text: "Price (USD)",
+      },
+      ticks: {
+        font: {
+          size: 10,
+        },
       },
     },
   },
@@ -252,11 +265,11 @@ export default function PriceComparisonChart() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <div className="space-x-3">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+        <div className="flex gap-2 w-full sm:w-auto">
           <button
             onClick={() => toggleZoomMode("pan")}
-            className={`px-4 py-1.5 text-sm rounded-md transition-all duration-200 shadow-sm ${
+            className={`flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm rounded-md transition-all duration-200 shadow-sm ${
               zoomMode === "pan"
                 ? "bg-primary text-primary-foreground shadow-md scale-105"
                 : "bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:scale-105"
@@ -266,7 +279,7 @@ export default function PriceComparisonChart() {
           </button>
           <button
             onClick={() => toggleZoomMode("zoom")}
-            className={`px-4 py-1.5 text-sm rounded-md transition-all duration-200 shadow-sm ${
+            className={`flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm rounded-md transition-all duration-200 shadow-sm ${
               zoomMode === "zoom"
                 ? "bg-primary text-primary-foreground shadow-md scale-105"
                 : "bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:scale-105"
@@ -275,33 +288,37 @@ export default function PriceComparisonChart() {
             Box Zoom
           </button>
         </div>
-        <div className="space-x-3">
+        <div className="flex gap-2 w-full sm:w-auto">
           <button
             onClick={() => resetZoom("24h")}
-            className="px-4 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-all duration-200 shadow-sm hover:scale-105"
+            className="flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-all duration-200 shadow-sm hover:scale-105"
           >
             Last 24h
           </button>
           <button
             onClick={() => resetZoom()}
-            className="px-4 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-all duration-200 shadow-sm hover:scale-105"
+            className="flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-all duration-200 shadow-sm hover:scale-105"
           >
             All Data
           </button>
         </div>
       </div>
-      <Line
-        ref={chartRef}
-        options={options}
-        data={chartData}
-        className="backdrop-blur-sm"
-      />
-      <div className="mt-6 text-sm text-muted-foreground/80 text-center space-y-2">
+      <div className="h-[50vh] sm:h-[60vh]">
+        <Line
+          ref={chartRef}
+          options={options}
+          data={chartData}
+          className="backdrop-blur-sm"
+        />
+      </div>
+      <div className="mt-4 sm:mt-6 text-xs sm:text-sm text-muted-foreground/80 text-center space-y-2">
         <div className="font-medium">Data updates every 30 seconds</div>
         <div className="text-xs space-y-1.5 opacity-75">
           <p>Pan Mode: Click and drag to move the chart</p>
           <p>Box Zoom: Click and drag to zoom into an area</p>
-          <p>Quick Zoom: Hold Ctrl + Mouse wheel to zoom</p>
+          <p className="hidden sm:block">
+            Quick Zoom: Hold Ctrl + Mouse wheel to zoom
+          </p>
         </div>
       </div>
     </div>
