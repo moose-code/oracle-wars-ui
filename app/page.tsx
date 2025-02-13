@@ -9,13 +9,15 @@ const queryClient = new QueryClient();
 export default function Home() {
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-background p-8">
-        <main className="max-w-6xl mx-auto space-y-6">
-          <div className="text-center space-y-2">
-            <h1 className="text-4xl font-bold tracking-tight">Oracle Wars</h1>
-            <div className="flex items-center justify-center gap-1.5">
+      <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-8">
+        <main className="max-w-6xl mx-auto space-y-8">
+          <div className="text-center space-y-4">
+            <h1 className="text-5xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent animate-in fade-in slide-in-from-bottom-4 duration-1000">
+              Oracle Wars
+            </h1>
+            <div className="flex items-center justify-center gap-1.5 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-200">
               <button
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-secondary/40 hover:bg-secondary/60 transition-colors cursor-not-allowed"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-card border shadow-sm hover:shadow-md transition-all duration-200 cursor-not-allowed"
                 disabled
               >
                 <span className="font-medium">ETH/USD (Ethereum)</span>
@@ -26,16 +28,16 @@ export default function Home() {
               </span>
             </div>
           </div>
-          <div className="bg-card p-6 rounded-lg shadow-lg border relative">
+          <div className="bg-card p-8 rounded-xl shadow-xl border backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300 hover:shadow-2xl transition-all duration-500">
             <PriceComparisonChart />
-            <div className="absolute bottom-2 right-4 text-xs text-muted-foreground text-right">
+            <div className="absolute bottom-3 right-4 text-xs text-muted-foreground/80 text-right">
               <div className="space-x-1">
                 <span>Data source:</span>
                 <a
                   href="https://envio.dev"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-primary hover:underline"
+                  className="text-primary/80 hover:text-primary hover:underline transition-colors"
                 >
                   indexed by Envio
                 </a>

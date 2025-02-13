@@ -248,48 +248,53 @@ export default function PriceComparisonChart() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <div className="space-x-2">
+      <div className="flex justify-between items-center mb-6">
+        <div className="space-x-3">
           <button
             onClick={() => toggleZoomMode("pan")}
-            className={`px-3 py-1 text-sm rounded-md transition-colors ${
+            className={`px-4 py-1.5 text-sm rounded-md transition-all duration-200 shadow-sm ${
               zoomMode === "pan"
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                ? "bg-primary text-primary-foreground shadow-md scale-105"
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:scale-105"
             }`}
           >
             Pan Mode
           </button>
           <button
             onClick={() => toggleZoomMode("zoom")}
-            className={`px-3 py-1 text-sm rounded-md transition-colors ${
+            className={`px-4 py-1.5 text-sm rounded-md transition-all duration-200 shadow-sm ${
               zoomMode === "zoom"
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                ? "bg-primary text-primary-foreground shadow-md scale-105"
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:scale-105"
             }`}
           >
             Box Zoom
           </button>
         </div>
-        <div className="space-x-2">
+        <div className="space-x-3">
           <button
             onClick={() => resetZoom("24h")}
-            className="px-3 py-1 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80"
+            className="px-4 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-all duration-200 shadow-sm hover:scale-105"
           >
             Last 24h
           </button>
           <button
             onClick={() => resetZoom()}
-            className="px-3 py-1 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80"
+            className="px-4 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-all duration-200 shadow-sm hover:scale-105"
           >
             All Data
           </button>
         </div>
       </div>
-      <Line ref={chartRef} options={options} data={chartData} />
-      <div className="mt-4 text-sm text-muted-foreground text-center space-y-1">
-        <div>Data updates every 30 seconds</div>
-        <div className="text-xs space-y-1">
+      <Line
+        ref={chartRef}
+        options={options}
+        data={chartData}
+        className="backdrop-blur-sm"
+      />
+      <div className="mt-6 text-sm text-muted-foreground/80 text-center space-y-2">
+        <div className="font-medium">Data updates every 30 seconds</div>
+        <div className="text-xs space-y-1.5 opacity-75">
           <p>Pan Mode: Click and drag to move the chart</p>
           <p>Box Zoom: Click and drag to zoom into an area</p>
           <p>Quick Zoom: Hold Ctrl + Mouse wheel to zoom</p>
