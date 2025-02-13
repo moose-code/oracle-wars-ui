@@ -133,9 +133,32 @@ export default function PriceComparisonChart() {
   const chartRef = React.useRef<any>(null);
   const [zoomMode, setZoomMode] = React.useState<"pan" | "zoom">("pan");
 
-  const resetZoom = () => {
+  // Add effect to set initial 24h view
+  React.useEffect(() => {
+    if (chartRef.current && data) {
+      const now = Date.now();
+      const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
+      chartRef.current.options.scales.x.min = twentyFourHoursAgo;
+      chartRef.current.options.scales.x.max = now;
+      chartRef.current.update();
+    }
+  }, [data]);
+
+  const resetZoom = (period?: "24h") => {
     if (chartRef.current) {
-      chartRef.current.resetZoom();
+      const chart = chartRef.current;
+
+      if (period === "24h") {
+        const now = Date.now();
+        const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
+        chart.options.scales.x.min = twentyFourHoursAgo;
+        chart.options.scales.x.max = now;
+      } else {
+        chart.options.scales.x.min = undefined;
+        chart.options.scales.x.max = undefined;
+      }
+
+      chart.update();
     }
   };
 
@@ -216,12 +239,20 @@ export default function PriceComparisonChart() {
             Box Zoom
           </button>
         </div>
-        <button
-          onClick={resetZoom}
-          className="px-3 py-1 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80"
-        >
-          Reset View
-        </button>
+        <div className="space-x-2">
+          <button
+            onClick={() => resetZoom("24h")}
+            className="px-3 py-1 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80"
+          >
+            Last 24h
+          </button>
+          <button
+            onClick={() => resetZoom()}
+            className="px-3 py-1 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80"
+          >
+            All Data
+          </button>
+        </div>
       </div>
       <Line ref={chartRef} options={options} data={chartData} />
       <div className="mt-4 text-sm text-muted-foreground text-center space-y-1">
