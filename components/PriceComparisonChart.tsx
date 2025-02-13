@@ -163,6 +163,9 @@ const options: ChartOptionsWithZoom = {
       type: "time",
       time: {
         unit: "hour",
+        displayFormats: {
+          hour: "MMM d, HH:mm",
+        },
       },
       display: true,
       title: {
@@ -175,6 +178,8 @@ const options: ChartOptionsWithZoom = {
         },
         maxTicksLimit: 8,
         padding: 5,
+        maxRotation: 45,
+        minRotation: 45,
       },
     },
     y: {
