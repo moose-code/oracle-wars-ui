@@ -130,9 +130,16 @@ const options: ChartOptionsWithZoom = {
       bodyFont: {
         size: 12,
       },
+      position: "nearest",
+      animation: {
+        duration: 150,
+      },
       callbacks: {
         title: (context) => {
-          return format(context[0].parsed.x, "PPp");
+          const date = new Date(context[0].parsed.x);
+          const formattedDate = format(date, "PP");
+          const formattedTime = format(date, "HH:mm:ss");
+          return `${formattedDate}, ${formattedTime}`;
         },
       },
     },
