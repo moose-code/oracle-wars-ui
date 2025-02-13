@@ -17,27 +17,46 @@ import { format } from "date-fns";
 import "chartjs-adapter-date-fns";
 import React from "react";
 
-// Only import and register zoom plugin on client side
-let zoomPlugin;
-if (typeof window !== "undefined") {
-  zoomPlugin = require("chartjs-plugin-zoom").default;
+// Add these interfaces at the top of the file
+interface PriceUpdate {
+  id: string;
+  updatedAt: number;
+  value?: string;
+  current?: string;
+}
 
-  ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    Title,
-    Tooltip,
-    Legend,
-    TimeScale,
-    zoomPlugin
-  );
+interface ChartContext {
+  ctx: CanvasRenderingContext2D;
+  chartArea: { left: number; top: number; width: number };
+}
+
+// Update the dynamic import
+const zoomPlugin =
+  typeof window !== "undefined"
+    ? import("chartjs-plugin-zoom").then((mod) => mod.default)
+    : null;
+
+if (typeof window !== "undefined") {
+  Promise.resolve(zoomPlugin).then((plugin) => {
+    if (plugin) {
+      ChartJS.register(
+        CategoryScale,
+        LinearScale,
+        PointElement,
+        LineElement,
+        Title,
+        Tooltip,
+        Legend,
+        TimeScale,
+        plugin
+      );
+    }
+  });
 }
 
 const watermarkPlugin = {
   id: "watermark",
-  beforeDraw: (chart: any) => {
+  beforeDraw: (chart: ChartContext) => {
     const ctx = chart.ctx;
     const { width } = chart.chartArea;
     const x = chart.chartArea.left + width / 2;
@@ -234,18 +253,21 @@ export default function PriceComparisonChart() {
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error loading data</div>;
 
+  // Update the data mapping
   const redstoneData = data.data.TransparentUpgradeableProxy_ValueUpdate.map(
-    (item: any) => ({
-      x: item.updatedAt * 1000, // Convert to milliseconds for Chart.js
+    (item: PriceUpdate) => ({
+      x: item.updatedAt * 1000,
       y: Number(item.value) / 1e8,
     })
   ).reverse();
 
   const chainlinkData =
-    data.data.AccessControlledOCR2Aggregator_AnswerUpdated.map((item: any) => ({
-      x: item.updatedAt * 1000, // Convert to milliseconds for Chart.js
-      y: Number(item.current) / 1e8,
-    })).reverse();
+    data.data.AccessControlledOCR2Aggregator_AnswerUpdated.map(
+      (item: PriceUpdate) => ({
+        x: item.updatedAt * 1000,
+        y: Number(item.current) / 1e8,
+      })
+    ).reverse();
 
   const chartData = {
     datasets: [
