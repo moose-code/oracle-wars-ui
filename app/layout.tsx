@@ -9,6 +9,9 @@ const geistMono = GeistMono;
 export const metadata: Metadata = {
   title: "Oracle Wars",
   description: "Compare Oracle Prices in Real-time",
+  icons: {
+    icon: "/icon",
+  },
 };
 
 export default function RootLayout({
