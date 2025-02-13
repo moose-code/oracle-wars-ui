@@ -30,6 +30,38 @@ ChartJS.register(
   zoomPlugin
 );
 
+const watermarkPlugin = {
+  id: "watermark",
+  beforeDraw: (chart: any) => {
+    const ctx = chart.ctx;
+    const { width } = chart.chartArea;
+    const x = chart.chartArea.left + width / 2;
+    const y = chart.chartArea.top + 30; // Position it 30px below the top of the chart area
+
+    ctx.save();
+    ctx.globalAlpha = 0.05; // Very subtle transparency
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "36px Arial"; // Slightly smaller font to fit better at the top
+    ctx.fillStyle = "rgb(100, 100, 100)";
+    ctx.fillText("Oracle Wars", x, y);
+    ctx.restore();
+  },
+};
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  TimeScale,
+  zoomPlugin,
+  watermarkPlugin
+);
+
 const options = {
   responsive: true,
   interaction: {
