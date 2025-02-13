@@ -11,6 +11,7 @@ import {
   Tooltip,
   Legend,
   TimeScale,
+  ChartOptions,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
 import { format } from "date-fns";
@@ -28,6 +29,26 @@ interface PriceUpdate {
 interface ChartContext {
   ctx: CanvasRenderingContext2D;
   chartArea: { left: number; top: number; width: number };
+}
+
+// Define zoom plugin types
+interface ZoomPluginOptions {
+  pan: {
+    enabled: boolean;
+    mode: "x" | "y" | "xy";
+  };
+  zoom: {
+    wheel: { enabled: boolean };
+    pinch: { enabled: boolean };
+    mode: "x" | "y" | "xy";
+    drag: { enabled: boolean };
+  };
+  limits?: {
+    x?: {
+      min: "original" | number;
+      max: "original" | number;
+    };
+  };
 }
 
 // Update the dynamic import
@@ -75,7 +96,14 @@ const watermarkPlugin = {
 
 ChartJS.register(watermarkPlugin);
 
-const options = {
+// Define the chart options type
+type ChartOptionsWithZoom = ChartOptions<"line"> & {
+  plugins: {
+    zoom: ZoomPluginOptions;
+  };
+};
+
+const options: ChartOptionsWithZoom = {
   responsive: true,
   maintainAspectRatio: false,
   interaction: {
@@ -103,7 +131,7 @@ const options = {
         size: 12,
       },
       callbacks: {
-        title: (context: any) => {
+        title: (context) => {
           return format(context[0].parsed.x, "PPp");
         },
       },
@@ -111,7 +139,7 @@ const options = {
     zoom: {
       pan: {
         enabled: true,
-        mode: "x" as const,
+        mode: "x",
       },
       zoom: {
         wheel: {
@@ -120,7 +148,7 @@ const options = {
         pinch: {
           enabled: true,
         },
-        mode: "x" as const,
+        mode: "x",
         drag: {
           enabled: false,
         },
@@ -132,9 +160,9 @@ const options = {
   },
   scales: {
     x: {
-      type: "time" as const,
+      type: "time",
       time: {
-        unit: "hour" as const,
+        unit: "hour",
       },
       display: true,
       title: {
@@ -150,9 +178,9 @@ const options = {
       },
     },
     y: {
-      type: "linear" as const,
+      type: "linear",
       display: true,
-      position: "left" as const,
+      position: "left",
       title: {
         display: true,
         text: "Price (USD)",
