@@ -15,6 +15,8 @@ import {
 import { Line } from "react-chartjs-2";
 import { format } from "date-fns";
 import "chartjs-adapter-date-fns";
+import zoomPlugin from "chartjs-plugin-zoom";
+import React from "react";
 
 ChartJS.register(
   CategoryScale,
@@ -24,7 +26,8 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  TimeScale
+  TimeScale,
+  zoomPlugin
 );
 
 const options = {
@@ -42,6 +45,28 @@ const options = {
         title: (context: any) => {
           return format(new Date(context[0].parsed.x), "MMM d, yyyy HH:mm:ss");
         },
+      },
+    },
+    zoom: {
+      zoom: {
+        wheel: {
+          enabled: true,
+          modifierKey: "ctrl",
+        },
+        pinch: {
+          enabled: true,
+        },
+        mode: "x",
+        drag: {
+          enabled: false,
+        },
+      },
+      pan: {
+        enabled: true,
+        mode: "x",
+      },
+      limits: {
+        y: { min: 0 },
       },
     },
   },
@@ -105,6 +130,32 @@ export default function PriceComparisonChart() {
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
+  const chartRef = React.useRef<any>(null);
+  const [zoomMode, setZoomMode] = React.useState<"pan" | "zoom">("pan");
+
+  const resetZoom = () => {
+    if (chartRef.current) {
+      chartRef.current.resetZoom();
+    }
+  };
+
+  const toggleZoomMode = (mode: "pan" | "zoom") => {
+    if (chartRef.current) {
+      const chart = chartRef.current;
+
+      if (mode === "zoom") {
+        chart.options.plugins.zoom.zoom.drag.enabled = true;
+        chart.options.plugins.zoom.pan.enabled = false;
+      } else {
+        chart.options.plugins.zoom.zoom.drag.enabled = false;
+        chart.options.plugins.zoom.pan.enabled = true;
+      }
+
+      chart.update();
+      setZoomMode(mode);
+    }
+  };
+
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error loading data</div>;
 
@@ -142,9 +193,44 @@ export default function PriceComparisonChart() {
 
   return (
     <div>
-      <Line options={options} data={chartData} />
-      <div className="mt-4 text-sm text-muted-foreground text-center">
-        Data updates every 30 seconds
+      <div className="flex justify-between items-center mb-4">
+        <div className="space-x-2">
+          <button
+            onClick={() => toggleZoomMode("pan")}
+            className={`px-3 py-1 text-sm rounded-md transition-colors ${
+              zoomMode === "pan"
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+            }`}
+          >
+            Pan Mode
+          </button>
+          <button
+            onClick={() => toggleZoomMode("zoom")}
+            className={`px-3 py-1 text-sm rounded-md transition-colors ${
+              zoomMode === "zoom"
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+            }`}
+          >
+            Box Zoom
+          </button>
+        </div>
+        <button
+          onClick={resetZoom}
+          className="px-3 py-1 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80"
+        >
+          Reset View
+        </button>
+      </div>
+      <Line ref={chartRef} options={options} data={chartData} />
+      <div className="mt-4 text-sm text-muted-foreground text-center space-y-1">
+        <div>Data updates every 30 seconds</div>
+        <div className="text-xs space-y-1">
+          <p>Pan Mode: Click and drag to move the chart</p>
+          <p>Box Zoom: Click and drag to zoom into an area</p>
+          <p>Quick Zoom: Hold Ctrl + Mouse wheel to zoom</p>
+        </div>
       </div>
     </div>
   );
