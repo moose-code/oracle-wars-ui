@@ -76,7 +76,7 @@ const options = {
       time: {
         unit: "minute",
         displayFormats: {
-          minute: "HH:mm:ss",
+          minute: "EEE, MMM d, yyyy HH:mm:ss",
         },
       },
       title: {
@@ -105,12 +105,12 @@ async function fetchPriceData() {
     body: JSON.stringify({
       query: `
         query myQuery {
-          TransparentUpgradeableProxy_ValueUpdate(limit: 100, order_by: {updatedAt: desc}) {
+          TransparentUpgradeableProxy_ValueUpdate(limit: 1000, order_by: {updatedAt: desc}) {
             id
             updatedAt
             value
           }
-          AccessControlledOCR2Aggregator_AnswerUpdated(limit: 100, order_by: {updatedAt: desc}) {
+          AccessControlledOCR2Aggregator_AnswerUpdated(limit: 1000, order_by: {updatedAt: desc}) {
             id
             updatedAt
             current
