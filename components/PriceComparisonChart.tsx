@@ -160,14 +160,14 @@ const options: ChartOptionsWithZoom = {
           enabled: false,
         },
       },
-      limits: {
-        x: { min: "original" as const, max: "original" as const },
-      },
+      limits: {},
     },
   },
   scales: {
     x: {
       type: "time",
+      min: Date.now() - 24 * 60 * 60 * 1000,
+      max: Date.now(),
       time: {
         unit: "hour",
         displayFormats: {
@@ -266,9 +266,13 @@ export default function PriceComparisonChart() {
         const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
         chart.options.scales.x.min = twentyFourHoursAgo;
         chart.options.scales.x.max = now;
+        chart.options.plugins.zoom.limits = {};
       } else {
         chart.options.scales.x.min = undefined;
         chart.options.scales.x.max = undefined;
+        chart.options.plugins.zoom.limits = {
+          x: { min: "original" as const, max: "original" as const },
+        };
       }
 
       chart.update();
