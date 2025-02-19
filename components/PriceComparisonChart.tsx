@@ -491,9 +491,22 @@ export default function PriceComparisonChart() {
             <div className="grid grid-cols-2 gap-4">
               {/* Redstone Stats */}
               <div className="space-y-2">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-[rgb(255,99,132)]" />
-                  <h4 className="text-xs font-medium">Redstone</h4>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-[rgb(255,99,132)]" />
+                    <h4 className="text-xs font-medium">Redstone</h4>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground flex items-center gap-1 group relative">
+                    <span>(±0.5%, 24h)</span>
+                    <div className="h-3.5 w-3.5 rounded-full border flex items-center justify-center text-[10px] cursor-help">
+                      i
+                    </div>
+                    <div className="absolute invisible group-hover:visible bg-black/80 text-xs text-white p-2 rounded-md -top-[4.5rem] left-0 w-48 backdrop-blur-sm z-20">
+                      Updates occur when either:
+                      <br />• 24 hours have passed
+                      <br />• Price changes by ±0.5%
+                    </div>
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
@@ -502,24 +515,6 @@ export default function PriceComparisonChart() {
                       {
                         calculateStats(redstoneData, chainlinkData).redstone
                           .updates
-                      }
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Heartbeat:</span>
-                    <span className="font-medium">
-                      {
-                        calculateStats(redstoneData, chainlinkData).redstone
-                          .heartbeat
-                      }
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Deviation:</span>
-                    <span className="font-medium">
-                      {
-                        calculateStats(redstoneData, chainlinkData).redstone
-                          .deviation
                       }
                     </span>
                   </div>
@@ -537,9 +532,22 @@ export default function PriceComparisonChart() {
 
               {/* Chainlink Stats */}
               <div className="space-y-2">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-[rgb(53,162,235)]" />
-                  <h4 className="text-xs font-medium">Chainlink</h4>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-[rgb(53,162,235)]" />
+                    <h4 className="text-xs font-medium">Chainlink</h4>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground flex items-center gap-1 group relative">
+                    <span>(±0.5%, 24h)</span>
+                    <div className="h-3.5 w-3.5 rounded-full border flex items-center justify-center text-[10px] cursor-help">
+                      i
+                    </div>
+                    <div className="absolute invisible group-hover:visible bg-black/80 text-xs text-white p-2 rounded-md -top-[4.5rem] right-0 w-48 backdrop-blur-sm z-20">
+                      Updates occur when either:
+                      <br />• 24 hours have passed
+                      <br />• Price changes by ±0.5%
+                    </div>
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
@@ -548,24 +556,6 @@ export default function PriceComparisonChart() {
                       {
                         calculateStats(redstoneData, chainlinkData).chainlink
                           .updates
-                      }
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Heartbeat:</span>
-                    <span className="font-medium">
-                      {
-                        calculateStats(redstoneData, chainlinkData).chainlink
-                          .heartbeat
-                      }
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Deviation:</span>
-                    <span className="font-medium">
-                      {
-                        calculateStats(redstoneData, chainlinkData).chainlink
-                          .deviation
                       }
                     </span>
                   </div>
