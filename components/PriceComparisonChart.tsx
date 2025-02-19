@@ -243,8 +243,62 @@ export default function PriceComparisonChart() {
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
+  // Add the stats expansion state here, with other state declarations
+  const [isStatsExpanded, setIsStatsExpanded] = React.useState(false);
   const chartRef = React.useRef<any>(null);
   const [zoomMode, setZoomMode] = React.useState<"pan" | "zoom">("pan");
+
+  // Update the calculateStats function
+  const calculateStats = (redstoneData: any[], chainlinkData: any[]) => {
+    const now = Date.now();
+    const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
+
+    const recent24hRedstone = redstoneData.filter(
+      (d) => d.x >= twentyFourHoursAgo
+    );
+    const recent24hChainlink = chainlinkData.filter(
+      (d) => d.x >= twentyFourHoursAgo
+    );
+
+    // Calculate max deviations
+    let maxRedstoneDeviation = 0;
+    let maxChainlinkDeviation = 0;
+
+    // Calculate Redstone max deviation between consecutive points
+    for (let i = 1; i < recent24hRedstone.length; i++) {
+      const currentPrice = recent24hRedstone[i].y;
+      const previousPrice = recent24hRedstone[i - 1].y;
+      const deviation = Math.abs(
+        ((currentPrice - previousPrice) / previousPrice) * 100
+      );
+      maxRedstoneDeviation = Math.max(maxRedstoneDeviation, deviation);
+    }
+
+    // Calculate Chainlink max deviation between consecutive points
+    for (let i = 1; i < recent24hChainlink.length; i++) {
+      const currentPrice = recent24hChainlink[i].y;
+      const previousPrice = recent24hChainlink[i - 1].y;
+      const deviation = Math.abs(
+        ((currentPrice - previousPrice) / previousPrice) * 100
+      );
+      maxChainlinkDeviation = Math.max(maxChainlinkDeviation, deviation);
+    }
+
+    return {
+      redstone: {
+        updates: recent24hRedstone.length,
+        heartbeat: "24h",
+        deviation: "0.5%",
+        maxDeviation: maxRedstoneDeviation.toFixed(4) + "%",
+      },
+      chainlink: {
+        updates: recent24hChainlink.length,
+        heartbeat: "27s",
+        deviation: "0.5%",
+        maxDeviation: maxChainlinkDeviation.toFixed(4) + "%",
+      },
+    };
+  };
 
   // Add effect to set initial 24h view
   React.useEffect(() => {
@@ -374,7 +428,7 @@ export default function PriceComparisonChart() {
           </button>
         </div>
       </div>
-      <div className="h-[45vh] sm:h-[55vh]">
+      <div className="h-[45vh] sm:h-[55vh] relative">
         <Line
           ref={chartRef}
           options={options}
@@ -391,6 +445,144 @@ export default function PriceComparisonChart() {
             Quick Zoom: Hold Ctrl + Mouse wheel to zoom
           </p>
         </div>
+      </div>
+
+      {/* Stats box */}
+      <div className="absolute bottom-4 left-4 bg-card/90 backdrop-blur-sm border rounded-lg shadow-lg overflow-hidden w-64">
+        <button
+          onClick={() => setIsStatsExpanded(!isStatsExpanded)}
+          className="w-full px-4 py-2 border-b bg-muted/30 flex items-center justify-between hover:bg-muted/50 transition-colors"
+        >
+          <h3 className="text-xs font-medium text-foreground/90">
+            Oracle Statistics (last 24h)
+          </h3>
+          <div
+            className={`transform transition-transform duration-200 ${
+              isStatsExpanded ? "rotate-180" : ""
+            }`}
+          >
+            ▼
+          </div>
+        </button>
+
+        {/* Compact View */}
+        {!isStatsExpanded && (
+          <div className="p-2 grid grid-cols-2 gap-3 text-xs">
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-[rgb(255,99,132)]" />
+              <span className="font-medium">
+                {calculateStats(redstoneData, chainlinkData).redstone.updates}{" "}
+                updates
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-[rgb(53,162,235)]" />
+              <span className="font-medium">
+                {calculateStats(redstoneData, chainlinkData).chainlink.updates}{" "}
+                updates
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Expanded View */}
+        {isStatsExpanded && (
+          <div className="p-3 space-y-3">
+            <div className="grid grid-cols-2 gap-4">
+              {/* Redstone Stats */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-[rgb(255,99,132)]" />
+                  <h4 className="text-xs font-medium">Redstone</h4>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Updates:</span>
+                    <span className="font-medium">
+                      {
+                        calculateStats(redstoneData, chainlinkData).redstone
+                          .updates
+                      }
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Heartbeat:</span>
+                    <span className="font-medium">
+                      {
+                        calculateStats(redstoneData, chainlinkData).redstone
+                          .heartbeat
+                      }
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Deviation:</span>
+                    <span className="font-medium">
+                      {
+                        calculateStats(redstoneData, chainlinkData).redstone
+                          .deviation
+                      }
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Max Dev:</span>
+                    <span className="font-medium">
+                      {
+                        calculateStats(redstoneData, chainlinkData).redstone
+                          .maxDeviation
+                      }
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Chainlink Stats */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-[rgb(53,162,235)]" />
+                  <h4 className="text-xs font-medium">Chainlink</h4>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Updates:</span>
+                    <span className="font-medium">
+                      {
+                        calculateStats(redstoneData, chainlinkData).chainlink
+                          .updates
+                      }
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Heartbeat:</span>
+                    <span className="font-medium">
+                      {
+                        calculateStats(redstoneData, chainlinkData).chainlink
+                          .heartbeat
+                      }
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Deviation:</span>
+                    <span className="font-medium">
+                      {
+                        calculateStats(redstoneData, chainlinkData).chainlink
+                          .deviation
+                      }
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Max Dev:</span>
+                    <span className="font-medium">
+                      {
+                        calculateStats(redstoneData, chainlinkData).chainlink
+                          .maxDeviation
+                      }
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
