@@ -84,12 +84,12 @@ const watermarkPlugin = {
     const y = chart.chartArea.top + 30; // Position it 30px below the top of the chart area
 
     ctx.save();
-    ctx.globalAlpha = 0.05; // Very subtle transparency
+    ctx.globalAlpha = 0.07; // Very subtle transparency
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = "36px Arial"; // Slightly smaller font to fit better at the top
+    ctx.font = "48px Arial"; // Increased font size
     ctx.fillStyle = "rgb(100, 100, 100)";
-    ctx.fillText("Oracle Wars", x, y);
+    ctx.fillText("envio.dev", x, y);
     ctx.restore();
   },
 };
