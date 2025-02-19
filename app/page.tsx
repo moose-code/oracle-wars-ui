@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import PriceComparisonChart from "@/components/PriceComparisonChart";
 import { ChevronDown } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import Image from "next/image";
 
 const queryClient = new QueryClient();
 
@@ -46,16 +47,33 @@ export default function Home() {
           </div>
           <div className="bg-card p-3 sm:p-6 rounded-xl shadow-xl border backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300 hover:shadow-2xl transition-all duration-500 overflow-x-auto">
             <PriceComparisonChart />
-            <div className="absolute bottom-3 right-4 text-xs text-muted-foreground/80 text-right">
-              <div className="space-x-1">
-                <span>Data source:</span>
+            <div className="absolute bottom-3 right-4 text-xs">
+              <div className="flex items-center gap-1.5 text-muted-foreground/80">
+                <span>Powered by</span>
+                <a
+                  href="https://docs.envio.dev/docs/HyperIndex/overview"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary/70 hover:text-primary transition-colors font-medium"
+                >
+                  HyperIndex
+                </a>
+                <span>on</span>
                 <a
                   href="https://envio.dev"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-primary/80 hover:text-primary hover:underline transition-colors"
+                  className="inline-flex items-center hover:opacity-80 transition-opacity"
                 >
-                  indexed by Envio
+                  <Image
+                    src="https://d30nibem0g3f7u.cloudfront.net/Envio-Logo.png"
+                    alt="Envio"
+                    width={96}
+                    height={40}
+                    className="h-5 w-auto object-contain"
+                    quality={100}
+                    priority
+                  />
                 </a>
               </div>
             </div>
