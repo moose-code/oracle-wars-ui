@@ -24,6 +24,7 @@ interface PriceUpdate {
   updatedAt: number;
   value?: string;
   current?: string;
+  nativeTokenUsed?: string;
 }
 
 interface ChartContext {
@@ -207,31 +208,30 @@ const options: ChartOptionsWithZoom = {
 };
 
 async function fetchPriceData() {
-  const response = await fetch(
-    "https://indexer.dev.hyperindex.xyz/136b503/v1/graphql",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query: `
+  const response = await fetch("/api/graphql", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      query: `
         query myQuery {
           TransparentUpgradeableProxy_ValueUpdate(limit: 1000, order_by: {updatedAt: desc}) {
             id
             updatedAt
             value
+            nativeTokenUsed
           }
           AccessControlledOCR2Aggregator_AnswerUpdated(limit: 1000, order_by: {updatedAt: desc}) {
             id
             updatedAt
             current
+            nativeTokenUsed
           }
         }
       `,
-      }),
-    }
-  );
+    }),
+  });
 
   return response.json();
 }
@@ -284,18 +284,61 @@ export default function PriceComparisonChart() {
       maxChainlinkDeviation = Math.max(maxChainlinkDeviation, deviation);
     }
 
+    // Calculate gas costs
+    // Using the latest price as the ETH price in USD
+    const latestRedstonePrice =
+      recent24hRedstone.length > 0 ? recent24hRedstone[0].y : 0;
+    const latestChainlinkPrice =
+      recent24hChainlink.length > 0 ? recent24hChainlink[0].y : 0;
+
+    // Calculate total native token used (in wei)
+    const totalRedstoneNativeToken = recent24hRedstone.reduce(
+      (sum, item) => sum + (item.nativeTokenUsed || 0),
+      0
+    );
+    const totalChainlinkNativeToken = recent24hChainlink.reduce(
+      (sum, item) => sum + (item.nativeTokenUsed || 0),
+      0
+    );
+
+    // Convert wei to ETH (1 ETH = 10^18 wei)
+    const weiToEth = 1e-18;
+
+    const redstoneEthCost = totalRedstoneNativeToken * weiToEth;
+    const chainlinkEthCost = totalChainlinkNativeToken * weiToEth;
+
+    // Convert ETH cost to USD using the oracle's own price
+    const redstoneUsdCost = redstoneEthCost * latestRedstonePrice;
+    const chainlinkUsdCost = chainlinkEthCost * latestChainlinkPrice;
+
+    // Calculate average cost per update
+    const redstoneAvgCost =
+      recent24hRedstone.length > 0
+        ? redstoneUsdCost / recent24hRedstone.length
+        : 0;
+    const chainlinkAvgCost =
+      recent24hChainlink.length > 0
+        ? chainlinkUsdCost / recent24hChainlink.length
+        : 0;
+
     return {
       redstone: {
         updates: recent24hRedstone.length,
         heartbeat: "24h",
         deviation: "0.5%",
         maxDeviation: maxRedstoneDeviation.toFixed(4) + "%",
+        totalNativeTokenUsed: totalRedstoneNativeToken,
+        totalCostUsd: redstoneUsdCost.toFixed(2),
+        avgCostUsd: redstoneAvgCost.toFixed(2),
       },
       chainlink: {
         updates: recent24hChainlink.length,
         heartbeat: "27s",
         deviation: "0.5%",
         maxDeviation: maxChainlinkDeviation.toFixed(4) + "%",
+        totalNativeTokenUsed: totalChainlinkNativeToken,
+        totalCostUsd: chainlinkUsdCost.toFixed(2),
+        avgCostUsd: chainlinkAvgCost.toFixed(2),
       },
     };
   };
@@ -358,6 +401,7 @@ export default function PriceComparisonChart() {
     (item: PriceUpdate) => ({
       x: item.updatedAt * 1000,
       y: Number(item.value) / 1e8,
+      nativeTokenUsed: item.nativeTokenUsed ? Number(item.nativeTokenUsed) : 0,
     })
   ).reverse();
 
@@ -366,6 +410,9 @@ export default function PriceComparisonChart() {
       (item: PriceUpdate) => ({
         x: item.updatedAt * 1000,
         y: Number(item.current) / 1e8,
+        nativeTokenUsed: item.nativeTokenUsed
+          ? Number(item.nativeTokenUsed)
+          : 0,
       })
     ).reverse();
 
@@ -527,6 +574,26 @@ export default function PriceComparisonChart() {
                       }
                     </span>
                   </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Total Cost:</span>
+                    <span className="font-medium">
+                      $
+                      {
+                        calculateStats(redstoneData, chainlinkData).redstone
+                          .totalCostUsd
+                      }
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Avg Cost:</span>
+                    <span className="font-medium">
+                      $
+                      {
+                        calculateStats(redstoneData, chainlinkData).redstone
+                          .avgCostUsd
+                      }
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -565,6 +632,26 @@ export default function PriceComparisonChart() {
                       {
                         calculateStats(redstoneData, chainlinkData).chainlink
                           .maxDeviation
+                      }
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Total Cost:</span>
+                    <span className="font-medium">
+                      $
+                      {
+                        calculateStats(redstoneData, chainlinkData).chainlink
+                          .totalCostUsd
+                      }
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Avg Cost:</span>
+                    <span className="font-medium">
+                      $
+                      {
+                        calculateStats(redstoneData, chainlinkData).chainlink
+                          .avgCostUsd
                       }
                     </span>
                   </div>
