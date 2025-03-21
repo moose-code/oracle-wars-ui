@@ -647,7 +647,7 @@ export default function PriceComparisonChart() {
     queryKey: ["binanceData", selectedFeed],
     queryFn: () => fetchBinanceData(FEEDS[selectedFeed].binanceSymbol),
     refetchInterval: 30000, // Refetch every 30 seconds to avoid rate limiting
-    enabled: showBinance,
+    enabled: showBinance && selectedFeed !== "ETH_USD",
   });
 
   // Update the calculateStats function to include Binance comparison
@@ -993,18 +993,19 @@ export default function PriceComparisonChart() {
         backgroundColor: "rgba(53, 162, 235, 0.5)",
         pointRadius: 3,
       },
-      ...(showBinance
+      ...(showBinance && selectedFeed !== "ETH_USD"
         ? [
             {
               label: "Binance",
               data: binanceChartData,
               borderColor: "rgb(75, 192, 192)",
               backgroundColor: "rgba(75, 192, 192, 0.5)",
-              pointRadius: 1, // Small but visible points
-              borderWidth: 1.5,
-              tension: 0, // Keep no smoothing for precision
-              pointHoverRadius: 3,
-              borderDash: [5, 5], // Dashed line pattern
+              pointRadius: 0, // Hide points by default for smoother line
+              borderWidth: 2,
+              tension: 0.3, // Add tension for smooth curve
+              pointHoverRadius: 4, // Larger hover radius to make points easier to hover
+              pointHoverBorderWidth: 2,
+              pointHoverBackgroundColor: "rgba(75, 192, 192, 0.8)",
               fill: false,
             },
           ]
@@ -1028,20 +1029,22 @@ export default function PriceComparisonChart() {
         </div>
 
         {/* Add Binance toggle */}
-        <div className="w-full sm:w-auto mb-2 sm:mb-0 flex items-center">
-          <label className="inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showBinance}
-              onChange={() => setShowBinance(!showBinance)}
-              className="sr-only peer"
-            />
-            <div className="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-[rgb(75,192,192)]"></div>
-            <span className="ml-1.5 text-xs text-gray-700 dark:text-gray-300">
-              Binance
-            </span>
-          </label>
-        </div>
+        {selectedFeed !== "ETH_USD" && (
+          <div className="w-full sm:w-auto mb-2 sm:mb-0 flex items-center">
+            <label className="inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showBinance}
+                onChange={() => setShowBinance(!showBinance)}
+                className="sr-only peer"
+              />
+              <div className="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-[rgb(75,192,192)]"></div>
+              <span className="ml-1.5 text-xs text-gray-700 dark:text-gray-300">
+                Binance
+              </span>
+            </label>
+          </div>
+        )}
 
         <div className="flex gap-1.5 w-full sm:w-auto">
           <button
