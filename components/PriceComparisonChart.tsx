@@ -27,6 +27,45 @@ interface PriceUpdate {
   nativeTokenUsed?: string;
 }
 
+// Add Binance kline interface
+interface BinanceKline {
+  openTime: number;
+  open: string;
+  high: string;
+  low: string;
+  close: string;
+  volume: string;
+  closeTime: number;
+  quoteAssetVolume: string;
+  trades: number;
+  takerBuyBaseAssetVolume: string;
+  takerBuyQuoteAssetVolume: string;
+  ignore: string;
+}
+
+// Add Binance trade interface
+interface BinanceTrade {
+  a: number; // Aggregate trade ID
+  p: string; // Price
+  q: string; // Quantity
+  f: number; // First trade ID
+  l: number; // Last trade ID
+  T: number; // Timestamp (ms)
+  m: boolean; // Is the buyer the market maker?
+  M: boolean; // Ignore
+}
+
+// Add custom 10-second candle interface
+interface TenSecondCandle {
+  timestamp: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  tradeCount: number;
+}
+
 interface ChartContext {
   ctx: CanvasRenderingContext2D;
   chartArea: { left: number; top: number; width: number };
@@ -222,6 +261,7 @@ const FEEDS = {
     timeUnit: "hour" as const,
     timeFormat: "MMM d, HH:mm",
     maxTicksLimit: 8,
+    binanceSymbol: "ETHUSDT",
   },
   BTC_USD: {
     name: "BTC/USD",
@@ -231,6 +271,7 @@ const FEEDS = {
     timeUnit: "minute" as const,
     timeFormat: "HH:mm:ss",
     maxTicksLimit: 12,
+    binanceSymbol: "BTCUSDT",
   },
 };
 
@@ -282,6 +323,274 @@ async function fetchPriceData(selectedFeed: FeedType) {
   return responseData;
 }
 
+// Replace the fetchBinanceData function with a more granular version
+async function fetchBinanceData(symbol: string) {
+  try {
+    // Calculate a longer start time (3 hours ago to match BTC/USD default view)
+    const now = Date.now();
+    const startTime = now - 3 * 60 * 60 * 1000; // 3 hours ago
+
+    console.log(
+      `Fetching Binance data for ${symbol} from ${new Date(
+        startTime
+      ).toISOString()}`
+    );
+
+    // Try 1-second candles first (most granular)
+    const oneSecondResponse = await fetch(
+      `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1s&limit=1000`
+    );
+
+    if (oneSecondResponse.ok) {
+      const oneSecData = await oneSecondResponse.json();
+      console.log(`Received ${oneSecData.length} 1s klines from Binance`);
+
+      if (oneSecData.length > 0) {
+        // Transform 1s klines data
+        const candles = oneSecData.map(
+          (item: any): TenSecondCandle => ({
+            timestamp: item[0], // openTime
+            open: parseFloat(item[1]),
+            high: parseFloat(item[2]),
+            low: parseFloat(item[3]),
+            close: parseFloat(item[4]),
+            volume: parseFloat(item[5]),
+            tradeCount: item[8], // number of trades in this candle
+          })
+        );
+
+        console.log(`Using ${candles.length} 1s candles for maximum precision`);
+        return candles;
+      }
+    }
+
+    // Try 3-second candles
+    const threeSecondResponse = await fetch(
+      `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=3s&limit=1000`
+    );
+
+    if (threeSecondResponse.ok) {
+      const threeSecData = await threeSecondResponse.json();
+      console.log(`Received ${threeSecData.length} 3s klines from Binance`);
+
+      if (threeSecData.length > 0) {
+        // Transform 3s klines data
+        const candles = threeSecData.map(
+          (item: any): TenSecondCandle => ({
+            timestamp: item[0], // openTime
+            open: parseFloat(item[1]),
+            high: parseFloat(item[2]),
+            low: parseFloat(item[3]),
+            close: parseFloat(item[4]),
+            volume: parseFloat(item[5]),
+            tradeCount: item[8], // number of trades in this candle
+          })
+        );
+
+        console.log(`Using ${candles.length} 3s candles`);
+        return candles;
+      }
+    }
+
+    // Then try 5-second candles
+    const fiveSecondResponse = await fetch(
+      `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=5s&limit=1000`
+    );
+
+    if (fiveSecondResponse.ok) {
+      const fiveSecData = await fiveSecondResponse.json();
+      console.log(`Received ${fiveSecData.length} 5s klines from Binance`);
+
+      if (fiveSecData.length > 0) {
+        // Transform 5s klines data
+        const candles = fiveSecData.map(
+          (item: any): TenSecondCandle => ({
+            timestamp: item[0], // openTime
+            open: parseFloat(item[1]),
+            high: parseFloat(item[2]),
+            low: parseFloat(item[3]),
+            close: parseFloat(item[4]),
+            volume: parseFloat(item[5]),
+            tradeCount: item[8], // number of trades in this candle
+          })
+        );
+
+        console.log(`Using ${candles.length} 5s candles`);
+        return candles;
+      }
+    }
+
+    // If we can't get more granular data, try using aggTrades and build ultra-granular 1-second candles
+    console.log("Trying aggTrades for ultra-granular data...");
+
+    const aggTradesResponse = await fetch(
+      `https://api.binance.com/api/v3/aggTrades?symbol=${symbol}&limit=1000`
+    );
+
+    if (aggTradesResponse.ok) {
+      const aggTradesData: BinanceTrade[] = await aggTradesResponse.json();
+      console.log(
+        `Received ${aggTradesData.length} trades from Binance aggTrades`
+      );
+
+      if (aggTradesData.length > 0) {
+        // Group trades into 1-second intervals for maximum granularity
+        const oneSecondCandles: TenSecondCandle[] = [];
+        let currentBucket: BinanceTrade[] = [];
+        let currentBucketTimestamp = 0;
+
+        // Sort trades by timestamp
+        const sortedTrades = [...aggTradesData].sort((a, b) => a.T - b.T);
+
+        for (const trade of sortedTrades) {
+          // Calculate the 1-second bucket this trade belongs to (1000 milliseconds = 1 second)
+          const bucketTimestamp = Math.floor(trade.T / 1000) * 1000;
+
+          if (
+            bucketTimestamp !== currentBucketTimestamp &&
+            currentBucket.length > 0
+          ) {
+            // We've moved to a new 1-second interval, process the previous bucket
+            const firstTrade = currentBucket[0];
+            const lastTrade = currentBucket[currentBucket.length - 1];
+
+            // Calculate OHLC values
+            const open = parseFloat(firstTrade.p);
+            const close = parseFloat(lastTrade.p);
+            const high = Math.max(...currentBucket.map((t) => parseFloat(t.p)));
+            const low = Math.min(...currentBucket.map((t) => parseFloat(t.p)));
+            const volume = currentBucket.reduce(
+              (sum, t) => sum + parseFloat(t.q),
+              0
+            );
+
+            oneSecondCandles.push({
+              timestamp: currentBucketTimestamp,
+              open,
+              high,
+              low,
+              close,
+              volume,
+              tradeCount: currentBucket.length,
+            });
+
+            // Start a new bucket
+            currentBucket = [trade];
+            currentBucketTimestamp = bucketTimestamp;
+          } else {
+            // Add to current bucket
+            if (currentBucket.length === 0) {
+              currentBucketTimestamp = bucketTimestamp;
+            }
+            currentBucket.push(trade);
+          }
+        }
+
+        // Process the last bucket if it has trades
+        if (currentBucket.length > 0) {
+          const firstTrade = currentBucket[0];
+          const lastTrade = currentBucket[currentBucket.length - 1];
+
+          const open = parseFloat(firstTrade.p);
+          const close = parseFloat(lastTrade.p);
+          const high = Math.max(...currentBucket.map((t) => parseFloat(t.p)));
+          const low = Math.min(...currentBucket.map((t) => parseFloat(t.p)));
+          const volume = currentBucket.reduce(
+            (sum, t) => sum + parseFloat(t.q),
+            0
+          );
+
+          oneSecondCandles.push({
+            timestamp: currentBucketTimestamp,
+            open,
+            high,
+            low,
+            close,
+            volume,
+            tradeCount: currentBucket.length,
+          });
+        }
+
+        console.log(
+          `Created ${oneSecondCandles.length} 1-second candles from aggTrades`
+        );
+
+        if (oneSecondCandles.length > 50) {
+          return oneSecondCandles;
+        }
+      }
+    }
+
+    // Last resort: fall back to 1-minute klines
+    console.log("Falling back to 1-minute klines");
+
+    const oneMinuteResponse = await fetch(
+      `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=1000`
+    );
+
+    if (!oneMinuteResponse.ok) {
+      throw new Error(`Binance klines API error: ${oneMinuteResponse.status}`);
+    }
+
+    const oneMinuteData = await oneMinuteResponse.json();
+    console.log(
+      `Received ${oneMinuteData.length} 1m klines from Binance fallback`
+    );
+
+    // Transform 1m klines data
+    const candles = oneMinuteData.map(
+      (item: any): TenSecondCandle => ({
+        timestamp: item[0], // openTime
+        open: parseFloat(item[1]),
+        high: parseFloat(item[2]),
+        low: parseFloat(item[3]),
+        close: parseFloat(item[4]),
+        volume: parseFloat(item[5]),
+        tradeCount: item[8], // number of trades in this candle
+      })
+    );
+
+    return candles;
+  } catch (error) {
+    console.error("Error fetching Binance data:", error);
+
+    // Final fallback
+    try {
+      console.log("Final fallback to 1m klines");
+      const fallbackResponse = await fetch(
+        `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=1000`
+      );
+
+      if (!fallbackResponse.ok) {
+        throw new Error(`Binance klines API error: ${fallbackResponse.status}`);
+      }
+
+      const fallbackData = await fallbackResponse.json();
+      console.log(
+        `Received ${fallbackData.length} 1m klines in final fallback`
+      );
+
+      // Transform klines data
+      const candles = fallbackData.map(
+        (item: any): TenSecondCandle => ({
+          timestamp: item[0], // openTime
+          open: parseFloat(item[1]),
+          high: parseFloat(item[2]),
+          low: parseFloat(item[3]),
+          close: parseFloat(item[4]),
+          volume: parseFloat(item[5]),
+          tradeCount: item[8], // number of trades in this candle
+        })
+      );
+
+      return candles;
+    } catch (fallbackError) {
+      console.error("Error in fallback fetch:", fallbackError);
+      return [];
+    }
+  }
+}
+
 export default function PriceComparisonChart() {
   // Add state for the selected feed
   const [selectedFeed, setSelectedFeed] = React.useState<FeedType>("ETH_USD");
@@ -330,10 +639,22 @@ export default function PriceComparisonChart() {
   const chartRef = React.useRef<any>(null);
   const [zoomMode, setZoomMode] = React.useState<"pan" | "zoom">("pan");
 
-  // Update the calculateStats function to handle feeds without Redstone data
+  // Add state for displaying Binance data
+  const [showBinance, setShowBinance] = React.useState(true);
+
+  // Query for Binance data
+  const { data: binanceData, isLoading: isBinanceLoading } = useQuery({
+    queryKey: ["binanceData", selectedFeed],
+    queryFn: () => fetchBinanceData(FEEDS[selectedFeed].binanceSymbol),
+    refetchInterval: 30000, // Refetch every 30 seconds to avoid rate limiting
+    enabled: showBinance,
+  });
+
+  // Update the calculateStats function to include Binance comparison
   const calculateStats = (
     redstoneData: any[],
     chainlinkData: any[],
+    binanceData: any[],
     hasBothOracles: boolean
   ) => {
     const now = Date.now();
@@ -345,6 +666,9 @@ export default function PriceComparisonChart() {
     const recent24hChainlink = chainlinkData.filter(
       (d) => d.x >= twentyFourHoursAgo
     );
+    const recent24hBinance = binanceData
+      ? binanceData.filter((d) => d.x >= twentyFourHoursAgo)
+      : [];
 
     // Calculate max deviations
     let maxRedstoneDeviation = 0;
@@ -439,6 +763,42 @@ export default function PriceComparisonChart() {
       }
     }
 
+    // Calculate lag statistics when comparing to Binance
+    let avgLagChainlink = 0;
+    let maxLagChainlink = 0;
+    let lagCount = 0;
+
+    if (recent24hBinance.length > 0 && recent24hChainlink.length > 0) {
+      // For each Chainlink update, find the closest Binance price
+      for (const chainlinkPoint of recent24hChainlink) {
+        // Find the closest Binance data point in time
+        const closestBinance = recent24hBinance.reduce((closest, current) => {
+          return Math.abs(current.x - chainlinkPoint.x) <
+            Math.abs(closest.x - chainlinkPoint.x)
+            ? current
+            : closest;
+        }, recent24hBinance[0]);
+
+        // Calculate price difference as a percentage
+        const priceDiff = Math.abs(
+          ((chainlinkPoint.y - closestBinance.y) / closestBinance.y) * 100
+        );
+
+        // Calculate time difference in seconds
+        const timeDiff = Math.abs(chainlinkPoint.x - closestBinance.x) / 1000;
+
+        // Only count if the time difference is reasonable (less than 5 minutes)
+        if (timeDiff < 300) {
+          avgLagChainlink += timeDiff;
+          maxLagChainlink = Math.max(maxLagChainlink, timeDiff);
+          lagCount++;
+        }
+      }
+
+      // Calculate average
+      avgLagChainlink = lagCount > 0 ? avgLagChainlink / lagCount : 0;
+    }
+
     return {
       redstone: {
         updates: recent24hRedstone.length,
@@ -459,6 +819,12 @@ export default function PriceComparisonChart() {
         totalCostUsd: chainlinkUsdCost.toFixed(2),
         avgCostUsd: chainlinkAvgCost.toFixed(2),
         maxUpdateCostUsd: maxChainlinkUpdateCost.toFixed(2),
+        // Add lag stats
+        avgLagSeconds: avgLagChainlink.toFixed(1),
+        maxLagSeconds: maxLagChainlink.toFixed(1),
+      },
+      binance: {
+        updates: recent24hBinance.length,
       },
     };
   };
@@ -563,7 +929,50 @@ export default function PriceComparisonChart() {
         ).reverse()
       : [];
 
-  // Modify the chart data to conditionally include datasets based on selected feed
+  // Transform Binance data for chart
+  const binanceChartData =
+    binanceData && binanceData.length > 0
+      ? binanceData.map((item: TenSecondCandle) => {
+          // Ensure timestamp is a number - JavaScript timestamps are in milliseconds
+          // Some APIs might return timestamps as strings or seconds instead of milliseconds
+          const timestamp =
+            typeof item.timestamp === "string"
+              ? parseInt(item.timestamp, 10)
+              : item.timestamp;
+
+          // Make sure we have a valid timestamp in milliseconds
+          // If it's too small, it might be in seconds and need conversion
+          const adjustedTimestamp =
+            timestamp < 1000000000000 ? timestamp * 1000 : timestamp;
+
+          return {
+            x: adjustedTimestamp,
+            y: item.close,
+          };
+        })
+      : [];
+
+  console.log(
+    `Created ${binanceChartData.length} chart data points from Binance data`
+  );
+  if (binanceChartData.length > 0) {
+    // Check the processed timestamps
+    console.log("Binance chart data sample:", binanceChartData[0]);
+    console.log(
+      "First point time:",
+      new Date(binanceChartData[0].x).toISOString()
+    );
+    console.log(
+      "Last point time:",
+      new Date(binanceChartData[binanceChartData.length - 1].x).toISOString()
+    );
+
+    // Add debug to compare with our chart time range
+    console.log("Chart x-axis min:", chartOptions.scales?.x?.min);
+    console.log("Chart x-axis max:", chartOptions.scales?.x?.max);
+  }
+
+  // Modify the chart data to include Binance dataset
   const chartData = {
     datasets: [
       ...(FEEDS[selectedFeed].hasRedstone
@@ -584,6 +993,22 @@ export default function PriceComparisonChart() {
         backgroundColor: "rgba(53, 162, 235, 0.5)",
         pointRadius: 3,
       },
+      ...(showBinance
+        ? [
+            {
+              label: "Binance",
+              data: binanceChartData,
+              borderColor: "rgb(75, 192, 192)",
+              backgroundColor: "rgba(75, 192, 192, 0.5)",
+              pointRadius: 1, // Small but visible points
+              borderWidth: 1.5,
+              tension: 0, // Keep no smoothing for precision
+              pointHoverRadius: 3,
+              borderDash: [5, 5], // Dashed line pattern
+              fill: false,
+            },
+          ]
+        : []),
     ],
   };
 
@@ -600,6 +1025,22 @@ export default function PriceComparisonChart() {
             <option value="ETH_USD">ETH/USD</option>
             <option value="BTC_USD">BTC/USD (Polygon)</option>
           </select>
+        </div>
+
+        {/* Add Binance toggle */}
+        <div className="w-full sm:w-auto mb-2 sm:mb-0 flex items-center">
+          <label className="inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showBinance}
+              onChange={() => setShowBinance(!showBinance)}
+              className="sr-only peer"
+            />
+            <div className="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-[rgb(75,192,192)]"></div>
+            <span className="ml-1.5 text-xs text-gray-700 dark:text-gray-300">
+              Binance
+            </span>
+          </label>
         </div>
 
         <div className="flex gap-1.5 w-full sm:w-auto">
@@ -687,6 +1128,7 @@ export default function PriceComparisonChart() {
                     calculateStats(
                       redstoneData,
                       chainlinkData,
+                      binanceChartData,
                       FEEDS[selectedFeed].hasRedstone
                     ).redstone.updates
                   }{" "}
@@ -705,6 +1147,7 @@ export default function PriceComparisonChart() {
                   calculateStats(
                     redstoneData,
                     chainlinkData,
+                    binanceChartData,
                     FEEDS[selectedFeed].hasRedstone
                   ).chainlink.updates
                 }{" "}
@@ -750,6 +1193,7 @@ export default function PriceComparisonChart() {
                           calculateStats(
                             redstoneData,
                             chainlinkData,
+                            binanceChartData,
                             FEEDS[selectedFeed].hasRedstone
                           ).redstone.updates
                         }
@@ -764,6 +1208,7 @@ export default function PriceComparisonChart() {
                           calculateStats(
                             redstoneData,
                             chainlinkData,
+                            binanceChartData,
                             FEEDS[selectedFeed].hasRedstone
                           ).redstone.maxDeviation
                         }
@@ -787,6 +1232,7 @@ export default function PriceComparisonChart() {
                             calculateStats(
                               redstoneData,
                               chainlinkData,
+                              binanceChartData,
                               FEEDS[selectedFeed].hasRedstone
                             ).redstone.totalCostUsd
                           }
@@ -808,6 +1254,7 @@ export default function PriceComparisonChart() {
                           calculateStats(
                             redstoneData,
                             chainlinkData,
+                            binanceChartData,
                             FEEDS[selectedFeed].hasRedstone
                           ).redstone.avgCostUsd
                         }
@@ -828,6 +1275,7 @@ export default function PriceComparisonChart() {
                           calculateStats(
                             redstoneData,
                             chainlinkData,
+                            binanceChartData,
                             FEEDS[selectedFeed].hasRedstone
                           ).redstone.maxUpdateCostUsd
                         }
@@ -837,7 +1285,7 @@ export default function PriceComparisonChart() {
                 </div>
               )}
 
-              {/* Chainlink Stats */}
+              {/* Chainlink Stats with Binance comparison */}
               <div className="space-y-3">
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5">
@@ -864,6 +1312,7 @@ export default function PriceComparisonChart() {
                         calculateStats(
                           redstoneData,
                           chainlinkData,
+                          binanceChartData,
                           FEEDS[selectedFeed].hasRedstone
                         ).chainlink.updates
                       }
@@ -878,6 +1327,7 @@ export default function PriceComparisonChart() {
                         calculateStats(
                           redstoneData,
                           chainlinkData,
+                          binanceChartData,
                           FEEDS[selectedFeed].hasRedstone
                         ).chainlink.maxDeviation
                       }
@@ -901,6 +1351,7 @@ export default function PriceComparisonChart() {
                           calculateStats(
                             redstoneData,
                             chainlinkData,
+                            binanceChartData,
                             FEEDS[selectedFeed].hasRedstone
                           ).chainlink.totalCostUsd
                         }
@@ -922,6 +1373,7 @@ export default function PriceComparisonChart() {
                         calculateStats(
                           redstoneData,
                           chainlinkData,
+                          binanceChartData,
                           FEEDS[selectedFeed].hasRedstone
                         ).chainlink.avgCostUsd
                       }
@@ -942,11 +1394,50 @@ export default function PriceComparisonChart() {
                         calculateStats(
                           redstoneData,
                           chainlinkData,
+                          binanceChartData,
                           FEEDS[selectedFeed].hasRedstone
                         ).chainlink.maxUpdateCostUsd
                       }
                     </span>
                   </div>
+
+                  {/* Add Binance comparison stats when Binance is enabled */}
+                  {showBinance && (
+                    <div className="pt-2 mt-2 border-t">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">
+                          Avg Lag vs Binance:
+                        </span>
+                        <span className="font-medium">
+                          {
+                            calculateStats(
+                              redstoneData,
+                              chainlinkData,
+                              binanceChartData,
+                              FEEDS[selectedFeed].hasRedstone
+                            ).chainlink.avgLagSeconds
+                          }
+                          s
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">
+                          Max Lag vs Binance:
+                        </span>
+                        <span className="font-medium">
+                          {
+                            calculateStats(
+                              redstoneData,
+                              chainlinkData,
+                              binanceChartData,
+                              FEEDS[selectedFeed].hasRedstone
+                            ).chainlink.maxLagSeconds
+                          }
+                          s
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
