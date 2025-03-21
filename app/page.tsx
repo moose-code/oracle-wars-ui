@@ -32,18 +32,7 @@ export default function Home() {
             </div>
           </div>
           <div className="text-center">
-            <div className="flex items-center justify-center gap-1 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-200">
-              <button
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md bg-card border shadow-sm hover:shadow-md transition-all duration-200 cursor-not-allowed"
-                disabled
-              >
-                <span className="font-medium">ETH/USD (Ethereum)</span>
-                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-              </button>
-              <span className="text-xs text-muted-foreground">
-                More pairs coming soon
-              </span>
-            </div>
+            <div className="flex items-center justify-center gap-1 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-200"></div>
           </div>
           <div className="bg-card p-3 sm:p-6 rounded-xl shadow-xl border backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300 hover:shadow-2xl transition-all duration-500 overflow-x-auto">
             <PriceComparisonChart />

@@ -5,6 +5,7 @@ export async function POST(request: NextRequest) {
     const graphqlEndpoint = process.env.GRAPHQL_ENDPOINT;
 
     if (!graphqlEndpoint) {
+      console.error("GraphQL endpoint not configured");
       return NextResponse.json(
         { error: "GraphQL endpoint not configured" },
         { status: 500 }
@@ -13,6 +14,7 @@ export async function POST(request: NextRequest) {
 
     // Get the request body
     const body = await request.json();
+    console.log("Proxying GraphQL request:", body.query);
 
     // Forward the request to the actual GraphQL endpoint
     const response = await fetch(graphqlEndpoint, {
@@ -23,15 +25,30 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(body),
     });
 
+    if (!response.ok) {
+      console.error(`GraphQL endpoint returned status ${response.status}`);
+      return NextResponse.json(
+        { error: `GraphQL request failed with status ${response.status}` },
+        { status: response.status }
+      );
+    }
+
     // Get the response data
     const data = await response.json();
+
+    // Log a summary of the response for debugging
+    if (data.errors) {
+      console.error("GraphQL errors:", data.errors);
+    } else {
+      console.log("GraphQL response successful");
+    }
 
     // Return the response
     return NextResponse.json(data);
   } catch (error) {
     console.error("Error proxying GraphQL request:", error);
     return NextResponse.json(
-      { error: "Failed to proxy GraphQL request" },
+      { error: "Failed to proxy GraphQL request", details: String(error) },
       { status: 500 }
     );
   }
