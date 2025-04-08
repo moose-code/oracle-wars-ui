@@ -37,7 +37,7 @@ export default function Home() {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md bg-card border shadow-sm hover:shadow-md transition-all duration-200 cursor-not-allowed"
                 disabled
               >
-                <span className="font-medium">ETH/USD (Ethereum)</span>
+                <span className="font-medium">ETH/USD (MegaETH)</span>
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
               <span className="text-xs text-muted-foreground">
