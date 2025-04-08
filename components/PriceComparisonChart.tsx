@@ -58,6 +58,29 @@ const zoomPlugin =
     ? import("chartjs-plugin-zoom").then((mod) => mod.default)
     : null;
 
+// Create a custom plugin to disable animations consistently
+const noAnimationPlugin = {
+  id: "noAnimation",
+  afterInit: (chart: any) => {
+    // Add a hook to disable animations during updates
+    const originalUpdate = chart.update;
+    chart.update = function (mode?: any) {
+      // Disable animations temporarily during update
+      const prevAnimationSetting = chart.options.animation;
+      chart.options.animation = false;
+      originalUpdate.call(this, mode);
+      // Restore original animation setting
+      chart.options.animation = prevAnimationSetting;
+    };
+  },
+  // Add a hook to prevent animations during resize/zooming
+  beforeUpdate: (chart: any) => {
+    if (chart.animating) {
+      chart.animating = false;
+    }
+  },
+};
+
 if (typeof window !== "undefined") {
   Promise.resolve(zoomPlugin).then((plugin) => {
     if (plugin) {
@@ -70,7 +93,8 @@ if (typeof window !== "undefined") {
         Tooltip,
         Legend,
         TimeScale,
-        plugin
+        plugin,
+        noAnimationPlugin
       );
     }
   });
@@ -208,32 +232,97 @@ const options: ChartOptionsWithZoom = {
 };
 
 async function fetchPriceData() {
-  const response = await fetch("/api/graphql", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      query: `
-        query myQuery {
-          TransparentUpgradeableProxy_ValueUpdate(limit: 5000, order_by: {updatedAt: desc}) {
-            id
-            updatedAt
-            value
-            nativeTokenUsed
+  // Function to fetch a single page of data
+  async function fetchPage(offset: number) {
+    const response = await fetch("/api/graphql", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query: `
+          query myQuery {
+            TransparentUpgradeableProxy_ValueUpdate(
+              limit: 1000, 
+              offset: ${offset}, 
+              order_by: {updatedAt: desc}
+            ) {
+              id
+              updatedAt
+              value
+              nativeTokenUsed
+            }
+            AccessControlledOCR2Aggregator_AnswerUpdated(
+              limit: 1000, 
+              offset: ${offset}, 
+              order_by: {updatedAt: desc}
+            ) {
+              id
+              updatedAt
+              current
+              nativeTokenUsed
+            }
           }
-          AccessControlledOCR2Aggregator_AnswerUpdated(limit: 5000, order_by: {updatedAt: desc}) {
-            id
-            updatedAt
-            current
-            nativeTokenUsed
-          }
-        }
-      `,
-    }),
-  });
+        `,
+      }),
+    });
 
-  return response.json();
+    return response.json();
+  }
+
+  try {
+    // Fetch first 3 pages in parallel (3000 items total)
+    const [page1, page2, page3] = await Promise.all([
+      fetchPage(0),
+      fetchPage(1000),
+      fetchPage(2000),
+    ]);
+
+    // Combine the results
+    return {
+      data: {
+        TransparentUpgradeableProxy_ValueUpdate: [
+          ...page1.data.TransparentUpgradeableProxy_ValueUpdate,
+          ...page2.data.TransparentUpgradeableProxy_ValueUpdate,
+          ...page3.data.TransparentUpgradeableProxy_ValueUpdate,
+        ],
+        AccessControlledOCR2Aggregator_AnswerUpdated: [
+          ...page1.data.AccessControlledOCR2Aggregator_AnswerUpdated,
+          ...page2.data.AccessControlledOCR2Aggregator_AnswerUpdated,
+          ...page3.data.AccessControlledOCR2Aggregator_AnswerUpdated,
+        ],
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching paginated data:", error);
+    // If pagination fails, fall back to a single query
+    const response = await fetch("/api/graphql", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query: `
+          query myQuery {
+            TransparentUpgradeableProxy_ValueUpdate(limit: 1000, order_by: {updatedAt: desc}) {
+              id
+              updatedAt
+              value
+              nativeTokenUsed
+            }
+            AccessControlledOCR2Aggregator_AnswerUpdated(limit: 1000, order_by: {updatedAt: desc}) {
+              id
+              updatedAt
+              current
+              nativeTokenUsed
+            }
+          }
+        `,
+      }),
+    });
+
+    return response.json();
+  }
 }
 
 export default function PriceComparisonChart() {
@@ -280,13 +369,16 @@ export default function PriceComparisonChart() {
   const chartRef = React.useRef<any>(null);
   const [zoomMode, setZoomMode] = React.useState<"pan" | "zoom">("pan");
 
-  // Set initial timeframe (separate from data changes effect)
+  // Set initial timeframe
   React.useEffect(() => {
     if (chartRef.current && data) {
       const now = Date.now();
       const oneMinuteAgo = now - 60 * 1000;
+
+      // Set the time window
       chartRef.current.options.scales.x.min = oneMinuteAgo;
       chartRef.current.options.scales.x.max = now;
+
       chartRef.current.update();
     }
   }, [data]);
