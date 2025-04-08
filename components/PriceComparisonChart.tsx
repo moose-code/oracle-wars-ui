@@ -167,12 +167,12 @@ const options: ChartOptionsWithZoom = {
   scales: {
     x: {
       type: "time",
-      min: Date.now() - 24 * 60 * 60 * 1000,
+      min: Date.now() - 60 * 1000,
       max: Date.now(),
       time: {
-        unit: "hour",
+        unit: "second",
         displayFormats: {
-          hour: "MMM d, HH:mm",
+          second: "HH:mm:ss",
         },
       },
       display: true,
@@ -184,7 +184,7 @@ const options: ChartOptionsWithZoom = {
         font: {
           size: 10,
         },
-        maxTicksLimit: 8,
+        maxTicksLimit: 10,
         padding: 5,
         maxRotation: 45,
         minRotation: 45,
@@ -216,13 +216,13 @@ async function fetchPriceData() {
     body: JSON.stringify({
       query: `
         query myQuery {
-          TransparentUpgradeableProxy_ValueUpdate(limit: 1000, order_by: {updatedAt: desc}) {
+          TransparentUpgradeableProxy_ValueUpdate(limit: 5000, order_by: {updatedAt: desc}) {
             id
             updatedAt
             value
             nativeTokenUsed
           }
-          AccessControlledOCR2Aggregator_AnswerUpdated(limit: 1000, order_by: {updatedAt: desc}) {
+          AccessControlledOCR2Aggregator_AnswerUpdated(limit: 5000, order_by: {updatedAt: desc}) {
             id
             updatedAt
             current
@@ -240,15 +240,34 @@ export default function PriceComparisonChart() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["priceData"],
     queryFn: fetchPriceData,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 1000,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
   });
 
-  // Add the stats expansion state here, with other state declarations
+  // Add a separate effect to update chart when data changes
+  React.useEffect(() => {
+    if (chartRef.current && data) {
+      // Update without animation
+      chartRef.current.update("none");
+    }
+  }, [data]);
+
   const [isStatsExpanded, setIsStatsExpanded] = React.useState(false);
   const chartRef = React.useRef<any>(null);
   const [zoomMode, setZoomMode] = React.useState<"pan" | "zoom">("pan");
 
-  // Update the calculateStats function
+  // Set initial timeframe (separate from data changes effect)
+  React.useEffect(() => {
+    if (chartRef.current && data) {
+      const now = Date.now();
+      const oneMinuteAgo = now - 60 * 1000;
+      chartRef.current.options.scales.x.min = oneMinuteAgo;
+      chartRef.current.options.scales.x.max = now;
+      chartRef.current.update();
+    }
+  }, [data]);
+
   const calculateStats = (redstoneData: any[], chainlinkData: any[]) => {
     const now = Date.now();
     const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
@@ -367,25 +386,24 @@ export default function PriceComparisonChart() {
     };
   };
 
-  // Add effect to set initial 24h view
-  React.useEffect(() => {
-    if (chartRef.current && data) {
-      const now = Date.now();
-      const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
-      chartRef.current.options.scales.x.min = twentyFourHoursAgo;
-      chartRef.current.options.scales.x.max = now;
-      chartRef.current.update();
-    }
-  }, [data]);
-
-  const resetZoom = (period?: "24h") => {
+  const resetZoom = (period?: "24h" | "1h" | "1m") => {
     if (chartRef.current) {
       const chart = chartRef.current;
+      const now = Date.now();
 
       if (period === "24h") {
-        const now = Date.now();
         const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
         chart.options.scales.x.min = twentyFourHoursAgo;
+        chart.options.scales.x.max = now;
+        chart.options.plugins.zoom.limits = {};
+      } else if (period === "1h") {
+        const oneHourAgo = now - 60 * 60 * 1000;
+        chart.options.scales.x.min = oneHourAgo;
+        chart.options.scales.x.max = now;
+        chart.options.plugins.zoom.limits = {};
+      } else if (period === "1m") {
+        const oneMinuteAgo = now - 60 * 1000;
+        chart.options.scales.x.min = oneMinuteAgo;
         chart.options.scales.x.max = now;
         chart.options.plugins.zoom.limits = {};
       } else {
@@ -420,7 +438,6 @@ export default function PriceComparisonChart() {
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error loading data</div>;
 
-  // Update the data mapping
   const redstoneData = data.data.TransparentUpgradeableProxy_ValueUpdate.map(
     (item: PriceUpdate) => ({
       x: item.updatedAt * 1000,
@@ -447,13 +464,6 @@ export default function PriceComparisonChart() {
         data: redstoneData,
         borderColor: "rgb(255, 99, 132)",
         backgroundColor: "rgba(255, 99, 132, 0.5)",
-        pointRadius: 3,
-      },
-      {
-        label: "Chainlink",
-        data: chainlinkData,
-        borderColor: "rgb(53, 162, 235)",
-        backgroundColor: "rgba(53, 162, 235, 0.5)",
         pointRadius: 3,
       },
     ],
@@ -486,6 +496,18 @@ export default function PriceComparisonChart() {
         </div>
         <div className="flex gap-1.5 w-full sm:w-auto">
           <button
+            onClick={() => resetZoom("1m")}
+            className="flex-1 sm:flex-none px-2 py-1 text-xs sm:text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/80 transition-all duration-200 shadow-sm hover:scale-105"
+          >
+            Last Minute
+          </button>
+          <button
+            onClick={() => resetZoom("1h")}
+            className="flex-1 sm:flex-none px-2 py-1 text-xs sm:text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-all duration-200 shadow-sm hover:scale-105"
+          >
+            Last Hour
+          </button>
+          <button
             onClick={() => resetZoom("24h")}
             className="flex-1 sm:flex-none px-2 py-1 text-xs sm:text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-all duration-200 shadow-sm hover:scale-105"
           >
@@ -502,13 +524,16 @@ export default function PriceComparisonChart() {
       <div className="h-[45vh] sm:h-[55vh] relative">
         <Line
           ref={chartRef}
-          options={options}
+          options={{
+            ...options,
+            animation: false, // Disable all animations
+          }}
           data={chartData}
           className="backdrop-blur-sm"
         />
       </div>
       <div className="mt-2 sm:mt-3 text-xs text-muted-foreground/80 text-center space-y-1">
-        <div className="font-medium">Data updates every 30 seconds</div>
+        <div className="font-medium">Data updates every second</div>
         <div className="text-xs space-y-1 opacity-75">
           <p>Pan Mode: Click and drag to move the chart</p>
           <p>Box Zoom: Click and drag to zoom into an area</p>
@@ -516,252 +541,6 @@ export default function PriceComparisonChart() {
             Quick Zoom: Hold Ctrl + Mouse wheel to zoom
           </p>
         </div>
-      </div>
-
-      {/* Stats box */}
-      <div className="absolute bottom-4 left-4 bg-card/90 backdrop-blur-sm border rounded-lg shadow-lg overflow-hidden w-64 sm:w-80">
-        <button
-          onClick={() => setIsStatsExpanded(!isStatsExpanded)}
-          className="w-full px-4 py-2 border-b bg-muted/30 flex items-center justify-between hover:bg-muted/50 transition-colors"
-        >
-          <h3 className="text-xs font-medium text-foreground/90">
-            Oracle Statistics (last 24h)
-          </h3>
-          <div
-            className={`transform transition-transform duration-200 ${
-              isStatsExpanded ? "rotate-180" : ""
-            }`}
-          >
-            ▼
-          </div>
-        </button>
-
-        {/* Compact View */}
-        {!isStatsExpanded && (
-          <div className="p-2 grid grid-cols-2 gap-3 text-xs">
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-[rgb(255,99,132)]" />
-              <span className="font-medium">
-                {calculateStats(redstoneData, chainlinkData).redstone.updates}{" "}
-                updates
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-[rgb(53,162,235)]" />
-              <span className="font-medium">
-                {calculateStats(redstoneData, chainlinkData).chainlink.updates}{" "}
-                updates
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Expanded View */}
-        {isStatsExpanded && (
-          <div className="p-4 space-y-4">
-            <div className="grid grid-cols-2 gap-6">
-              {/* Redstone Stats */}
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-[rgb(255,99,132)]" />
-                    <h4 className="text-sm font-medium">Redstone</h4>
-                  </div>
-                  <div className="text-[10px] text-muted-foreground flex items-center gap-1 group relative">
-                    <span>(±0.5%, 24h)</span>
-                    <div className="h-3.5 w-3.5 rounded-full border flex items-center justify-center text-[10px] cursor-help">
-                      i
-                    </div>
-                    <div className="absolute invisible group-hover:visible bg-black/80 text-xs text-white p-2 rounded-md -top-[4.5rem] left-0 w-48 backdrop-blur-sm z-20">
-                      Updates occur when either:
-                      <br />• 24 hours have passed
-                      <br />• Price changes by ±0.5%
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Updates:</span>
-                    <span className="font-medium">
-                      {
-                        calculateStats(redstoneData, chainlinkData).redstone
-                          .updates
-                      }
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">
-                      Max Deviation:
-                    </span>
-                    <span className="font-medium">
-                      {
-                        calculateStats(redstoneData, chainlinkData).redstone
-                          .maxDeviation
-                      }
-                    </span>
-                  </div>
-
-                  {/* Cost metrics with extra spacing */}
-                  <div className="pt-3 border-t mt-3">
-                    <div className="flex justify-between text-xs">
-                      <div className="flex flex-col">
-                        <span className="text-muted-foreground">
-                          Total Cost (24h):
-                        </span>
-                        <span className="text-[9px] text-muted-foreground/70">
-                          on-chain updates
-                        </span>
-                      </div>
-                      <span className="font-medium">
-                        $
-                        {
-                          calculateStats(redstoneData, chainlinkData).redstone
-                            .totalCostUsd
-                        }
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <div className="flex flex-col">
-                      <span className="text-muted-foreground">
-                        Avg Cost/Update:
-                      </span>
-                      <span className="text-[9px] text-muted-foreground/70">
-                        per on-chain tx
-                      </span>
-                    </div>
-                    <span className="font-medium">
-                      $
-                      {
-                        calculateStats(redstoneData, chainlinkData).redstone
-                          .avgCostUsd
-                      }
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <div className="flex flex-col">
-                      <span className="text-muted-foreground">
-                        Most Expensive:
-                      </span>
-                      <span className="text-[9px] text-muted-foreground/70">
-                        single update
-                      </span>
-                    </div>
-                    <span className="font-medium">
-                      $
-                      {
-                        calculateStats(redstoneData, chainlinkData).redstone
-                          .maxUpdateCostUsd
-                      }
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Chainlink Stats */}
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-[rgb(53,162,235)]" />
-                    <h4 className="text-sm font-medium">Chainlink</h4>
-                  </div>
-                  <div className="text-[10px] text-muted-foreground flex items-center gap-1 group relative">
-                    <span>(±0.5%, 24h)</span>
-                    <div className="h-3.5 w-3.5 rounded-full border flex items-center justify-center text-[10px] cursor-help">
-                      i
-                    </div>
-                    <div className="absolute invisible group-hover:visible bg-black/80 text-xs text-white p-2 rounded-md -top-[4.5rem] right-0 w-48 backdrop-blur-sm z-20">
-                      Updates occur when either:
-                      <br />• 24 hours have passed
-                      <br />• Price changes by ±0.5%
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Updates:</span>
-                    <span className="font-medium">
-                      {
-                        calculateStats(redstoneData, chainlinkData).chainlink
-                          .updates
-                      }
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">
-                      Max Deviation:
-                    </span>
-                    <span className="font-medium">
-                      {
-                        calculateStats(redstoneData, chainlinkData).chainlink
-                          .maxDeviation
-                      }
-                    </span>
-                  </div>
-
-                  {/* Cost metrics with extra spacing */}
-                  <div className="pt-3 border-t mt-3">
-                    <div className="flex justify-between text-xs">
-                      <div className="flex flex-col">
-                        <span className="text-muted-foreground">
-                          Total Cost (24h):
-                        </span>
-                        <span className="text-[9px] text-muted-foreground/70">
-                          on-chain updates
-                        </span>
-                      </div>
-                      <span className="font-medium">
-                        $
-                        {
-                          calculateStats(redstoneData, chainlinkData).chainlink
-                            .totalCostUsd
-                        }
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <div className="flex flex-col">
-                      <span className="text-muted-foreground">
-                        Avg Cost/Update:
-                      </span>
-                      <span className="text-[9px] text-muted-foreground/70">
-                        per on-chain tx
-                      </span>
-                    </div>
-                    <span className="font-medium">
-                      $
-                      {
-                        calculateStats(redstoneData, chainlinkData).chainlink
-                          .avgCostUsd
-                      }
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <div className="flex flex-col">
-                      <span className="text-muted-foreground">
-                        Most Expensive:
-                      </span>
-                      <span className="text-[9px] text-muted-foreground/70">
-                        single update
-                      </span>
-                    </div>
-                    <span className="font-medium">
-                      $
-                      {
-                        calculateStats(redstoneData, chainlinkData).chainlink
-                          .maxUpdateCostUsd
-                      }
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="text-[10px] text-muted-foreground/70 text-center pt-1 border-t">
-              Cost calculations based on actual on-chain gas consumption and
-              current ETH price
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
