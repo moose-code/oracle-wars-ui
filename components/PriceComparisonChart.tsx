@@ -628,6 +628,11 @@ export default function PriceComparisonChart() {
               ></div>
             </div>
           </div>
+
+          {/* Subtle pulsing ring effect when price updates */}
+          {priceChanged && (
+            <div className="absolute inset-0 rounded-lg ring-2 ring-primary/50 animate-ping"></div>
+          )}
         </div>
       </div>
 
