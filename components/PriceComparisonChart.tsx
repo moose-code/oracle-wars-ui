@@ -245,13 +245,36 @@ export default function PriceComparisonChart() {
     refetchOnWindowFocus: false,
   });
 
+  // Add state to track the latest price and animate it
+  const [latestPrice, setLatestPrice] = React.useState<number | null>(null);
+  const [priceChanged, setPriceChanged] = React.useState(false);
+  const [previousPrice, setPreviousPrice] = React.useState<number | null>(null);
+
   // Add a separate effect to update chart when data changes
   React.useEffect(() => {
     if (chartRef.current && data) {
-      // Update without animation
-      chartRef.current.update("none");
+      // Remove the 'none' parameter to allow normal chart updates
+      chartRef.current.update();
+
+      // Get latest price data
+      const redstoneUpdates = data.data.TransparentUpgradeableProxy_ValueUpdate;
+      if (redstoneUpdates && redstoneUpdates.length > 0) {
+        const newPrice = Number(redstoneUpdates[0].value) / 1e8;
+
+        // Only trigger animation when price actually changes
+        if (newPrice !== latestPrice) {
+          setPreviousPrice(latestPrice);
+          setLatestPrice(newPrice);
+          setPriceChanged(true);
+
+          // Reset animation after a short delay
+          setTimeout(() => {
+            setPriceChanged(false);
+          }, 2000);
+        }
+      }
     }
-  }, [data]);
+  }, [data, latestPrice]);
 
   const [isStatsExpanded, setIsStatsExpanded] = React.useState(false);
   const chartRef = React.useRef<any>(null);
@@ -435,6 +458,18 @@ export default function PriceComparisonChart() {
     }
   };
 
+  // Calculate price change percentage
+  const calculatePriceChange = () => {
+    if (!previousPrice || !latestPrice) return null;
+    const pctChange = ((latestPrice - previousPrice) / previousPrice) * 100;
+    return {
+      value: pctChange.toFixed(4),
+      isPositive: pctChange >= 0,
+    };
+  };
+
+  const priceChange = calculatePriceChange();
+
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error loading data</div>;
 
@@ -524,14 +559,78 @@ export default function PriceComparisonChart() {
       <div className="h-[45vh] sm:h-[55vh] relative">
         <Line
           ref={chartRef}
-          options={{
-            ...options,
-            animation: false, // Disable all animations
-          }}
+          options={options}
           data={chartData}
           className="backdrop-blur-sm"
         />
       </div>
+
+      {/* Price update animation */}
+      <div className="mt-4 flex justify-center">
+        <div className="relative bg-card/80 backdrop-blur-sm p-4 rounded-lg border shadow-lg w-full max-w-md">
+          <div className="text-center">
+            <div className="text-xs text-muted-foreground mb-1">
+              Current ETH/USD Price
+            </div>
+            <div className="flex items-center justify-center gap-3">
+              <div
+                className={`text-2xl font-bold transition-all duration-300 ${
+                  priceChanged ? "scale-110 text-primary" : ""
+                }`}
+              >
+                $
+                {latestPrice?.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }) || "---"}
+              </div>
+
+              {priceChange && (
+                <div
+                  className={`text-sm font-medium px-2 py-0.5 rounded ${
+                    priceChanged ? "animate-pulse" : ""
+                  } ${
+                    priceChange.isPositive
+                      ? "text-green-500 bg-green-500/10"
+                      : "text-red-500 bg-red-500/10"
+                  }`}
+                >
+                  {priceChange.isPositive ? "+" : ""}
+                  {priceChange.value}%
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Pulsing dots animation to indicate real-time updates */}
+          <div className="flex justify-center mt-2 gap-1">
+            <div className="text-xs text-muted-foreground/70">
+              Real-time updates
+            </div>
+            <div className="flex gap-1 items-center">
+              <div
+                className={`h-1.5 w-1.5 rounded-full ${
+                  priceChanged ? "bg-primary" : "bg-muted"
+                } 
+                ${priceChanged ? "animate-pulse" : ""}`}
+              ></div>
+              <div
+                className={`h-1.5 w-1.5 rounded-full ${
+                  priceChanged ? "bg-primary" : "bg-muted"
+                } 
+                ${priceChanged ? "animate-pulse delay-100" : ""}`}
+              ></div>
+              <div
+                className={`h-1.5 w-1.5 rounded-full ${
+                  priceChanged ? "bg-primary" : "bg-muted"
+                } 
+                ${priceChanged ? "animate-pulse delay-200" : ""}`}
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="mt-2 sm:mt-3 text-xs text-muted-foreground/80 text-center space-y-1">
         <div className="font-medium">Data updates every second</div>
         <div className="text-xs space-y-1 opacity-75">
