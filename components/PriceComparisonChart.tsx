@@ -437,7 +437,26 @@ async function fetchPriceData() {
 }
 
 // Phase 2: Animation System - Helper Functions
-function getAnimationDelay(speed: "off" | "slow" | "medium" | "fast"): number {
+function getAnimationDelay(
+  speed: "off" | "slow" | "medium" | "fast",
+  isProduction: boolean = false
+): number {
+  // Use even faster delays in production to handle data load
+  if (isProduction) {
+    switch (speed) {
+      case "off":
+        return 0;
+      case "slow":
+        return 100;
+      case "medium":
+        return 25;
+      case "fast":
+        return 10; // Very fast for production
+      default:
+        return 25;
+    }
+  }
+
   switch (speed) {
     case "off":
       return 0;
@@ -482,13 +501,17 @@ export default function PriceComparisonChart() {
     typeof window !== "undefined" &&
     (process.env.VERCEL === "1" ||
       process.env.VERCEL_ENV ||
-      window.location.hostname.includes("vercel.app"));
+      window.location.hostname.includes("vercel.app") ||
+      window.location.hostname !== "localhost");
 
   const [animationState, setAnimationState] = React.useState<AnimationState>({
     speed: isVercel ? "fast" : "medium",
     isPlaying: true,
     queue: [],
   });
+
+  // Tab visibility state to handle background throttling
+  const [isTabVisible, setIsTabVisible] = React.useState(true);
 
   const [displayedRedstoneData, setDisplayedRedstoneData] = React.useState<
     any[]
@@ -507,6 +530,38 @@ export default function PriceComparisonChart() {
   const animationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const lastDataRef = React.useRef<any>(null);
 
+  // Tab visibility detection
+  React.useEffect(() => {
+    const handleVisibilityChange = () => {
+      const visible = !document.hidden;
+      setIsTabVisible(visible);
+
+      // When tab becomes visible again, clear animation buffer immediately
+      // and show all pending data to catch up
+      if (visible && pendingDataBuffer.redstone.length > 0) {
+        console.log(
+          "Tab visible again, catching up with",
+          pendingDataBuffer.redstone.length,
+          "pending points"
+        );
+
+        setDisplayedRedstoneData((current) =>
+          processDataBatch(pendingDataBuffer.redstone, current, 1000)
+        );
+        setDisplayedChainlinkData((current) =>
+          processDataBatch(pendingDataBuffer.chainlink, current, 1000)
+        );
+
+        // Clear the buffer since we just added everything
+        setPendingDataBuffer({ redstone: [], chainlink: [] });
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [pendingDataBuffer]);
+
   // Add state to track the latest price and animate it
   const [latestPrice, setLatestPrice] = React.useState<number | null>(null);
   const [priceChanged, setPriceChanged] = React.useState(false);
@@ -522,13 +577,24 @@ export default function PriceComparisonChart() {
       return;
     }
 
-    const delay = getAnimationDelay(animationState.speed);
-    const batchSize =
-      animationState.speed === "fast"
-        ? 3
-        : animationState.speed === "medium"
-        ? 2
-        : 1;
+    // If tab is not visible, don't process animation queue
+    // Let it build up and we'll catch up when tab becomes visible
+    if (!isTabVisible) {
+      return;
+    }
+
+    const delay = getAnimationDelay(animationState.speed, !!isVercel);
+
+    // More aggressive batch sizes, especially for production
+    const batchSize = isVercel
+      ? pendingDataBuffer.redstone.length > 10
+        ? 5
+        : 3 // Larger batches if buffer is big
+      : animationState.speed === "fast"
+      ? 3
+      : animationState.speed === "medium"
+      ? 2
+      : 1;
 
     // Clear any existing timeout
     if (animationTimeoutRef.current) {
@@ -576,6 +642,8 @@ export default function PriceComparisonChart() {
     animationState.speed,
     animationState.isPlaying,
     pendingDataBuffer.redstone.length,
+    isTabVisible,
+    isVercel,
   ]);
 
   // Phase 2: Enhanced data processing with animation buffer
