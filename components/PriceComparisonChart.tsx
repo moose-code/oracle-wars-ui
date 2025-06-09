@@ -611,7 +611,7 @@ export default function PriceComparisonChart() {
     let newChainlinkPoints: any[] = [];
 
     if (lastData) {
-      // Find points that weren't in the last dataset
+      // Find points that weren't in the last dataset (only animate truly NEW data)
       newRedstonePoints = processedRedstoneData.filter(
         (newPoint) =>
           !lastData.redstone.some(
@@ -627,18 +627,24 @@ export default function PriceComparisonChart() {
           )
       );
     } else {
-      // First load - show all data immediately or add to buffer based on animation settings
-      if (animationState.speed === "off") {
-        setDisplayedRedstoneData(processedRedstoneData);
-        setDisplayedChainlinkData(processedChainlinkData);
-      } else {
-        newRedstonePoints = processedRedstoneData;
-        newChainlinkPoints = processedChainlinkData;
-      }
+      // First load - show ALL historical data immediately, no animation
+      console.log(
+        "Initial load: showing",
+        processedRedstoneData.length,
+        "historical points immediately"
+      );
+      setDisplayedRedstoneData(processedRedstoneData);
+      setDisplayedChainlinkData(processedChainlinkData);
+      // Don't add historical data to animation buffer - only future updates will be animated
     }
 
-    // Add new points to animation buffer
+    // Add only NEW points to animation buffer (not historical data)
     if (newRedstonePoints.length > 0 || newChainlinkPoints.length > 0) {
+      console.log(
+        "Adding",
+        newRedstonePoints.length,
+        "new points to animation buffer"
+      );
       setPendingDataBuffer((prev) => ({
         redstone: [...prev.redstone, ...newRedstonePoints],
         chainlink: [...prev.chainlink, ...newChainlinkPoints],
