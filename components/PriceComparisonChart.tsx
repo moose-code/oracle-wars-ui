@@ -787,12 +787,14 @@ export default function PriceComparisonChart() {
 
   // Continuous time scrolling effect
   React.useEffect(() => {
-    if (!chartRef.current) return;
+    if (!chartRef.current || !data || !isTabVisible) return;
 
     // Clear any existing interval
     if (timeScrollIntervalRef.current) {
       clearInterval(timeScrollIntervalRef.current);
     }
+
+    console.log("Starting continuous time scrolling animation");
 
     // Update time window continuously every 100ms for smooth scrolling
     timeScrollIntervalRef.current = setInterval(() => {
@@ -819,7 +821,7 @@ export default function PriceComparisonChart() {
         clearInterval(timeScrollIntervalRef.current);
       }
     };
-  }, [isTabVisible]);
+  }, [isTabVisible, data]); // Will trigger when both are ready
 
   // Set initial timeframe when data first loads
   React.useEffect(() => {
