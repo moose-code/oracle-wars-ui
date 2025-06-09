@@ -535,24 +535,36 @@ export default function PriceComparisonChart() {
       const visible = !document.hidden;
       setIsTabVisible(visible);
 
-      // When tab becomes visible again, clear animation buffer immediately
-      // and show all pending data to catch up
-      if (visible && pendingDataBuffer.redstone.length > 0) {
-        console.log(
-          "Tab visible again, catching up with",
-          pendingDataBuffer.redstone.length,
-          "pending points"
-        );
+      // When tab becomes visible again, immediately jump to latest data and time
+      if (visible) {
+        console.log("Tab visible again, jumping to latest data");
 
-        setDisplayedRedstoneData((current) =>
-          processDataBatch(pendingDataBuffer.redstone, current, 1000)
-        );
-        setDisplayedChainlinkData((current) =>
-          processDataBatch(pendingDataBuffer.chainlink, current, 1000)
-        );
+        // Immediately jump to current time window
+        if (chartRef.current) {
+          const now = Date.now();
+          const twentySecondsAgo = now - 20 * 1000;
 
-        // Clear the buffer since we just added everything
-        setPendingDataBuffer({ redstone: [], chainlink: [] });
+          chartRef.current.options.scales.x.min = twentySecondsAgo;
+          chartRef.current.options.scales.x.max = now;
+        }
+
+        // Show all pending data immediately if there is any
+        if (pendingDataBuffer.redstone.length > 0) {
+          setDisplayedRedstoneData((current) =>
+            processDataBatch(pendingDataBuffer.redstone, current, 1000)
+          );
+          setDisplayedChainlinkData((current) =>
+            processDataBatch(pendingDataBuffer.chainlink, current, 1000)
+          );
+
+          // Clear the buffer since we just added everything
+          setPendingDataBuffer({ redstone: [], chainlink: [] });
+        }
+
+        // Force immediate chart update to show latest state
+        if (chartRef.current) {
+          chartRef.current.update("none");
+        }
       }
     };
 
