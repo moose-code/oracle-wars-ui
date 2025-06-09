@@ -477,8 +477,15 @@ export default function PriceComparisonChart() {
   });
 
   // Phase 2: Animation System State
+  // Use faster animation speed on Vercel to handle production data loads
+  const isVercel =
+    typeof window !== "undefined" &&
+    (process.env.VERCEL === "1" ||
+      process.env.VERCEL_ENV ||
+      window.location.hostname.includes("vercel.app"));
+
   const [animationState, setAnimationState] = React.useState<AnimationState>({
-    speed: "medium",
+    speed: isVercel ? "fast" : "medium",
     isPlaying: true,
     queue: [],
   });
