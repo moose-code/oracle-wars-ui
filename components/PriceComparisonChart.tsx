@@ -25,6 +25,7 @@ interface PriceUpdate {
   value?: string;
   current?: string;
   nativeTokenUsed?: string;
+  logIndex?: number;
 }
 
 interface ChartContext {
@@ -230,6 +231,103 @@ const options: ChartOptionsWithZoom = {
     },
   },
 };
+
+// Phase 1.1: Utility function to extract log index from ID
+function extractLogIndexFromId(id: string): number {
+  // ID format: ${chainId}_${blockNumber}_${logIndex}
+  const parts = id.split("_");
+  if (parts.length >= 3) {
+    const logIndex = parseInt(parts[2], 10);
+    return isNaN(logIndex) ? 0 : logIndex;
+  }
+  return 0;
+}
+
+// Phase 1.2: Function to distribute timestamps based on log index
+function distributeTimestamps(
+  data: Array<{ id: string; updatedAt: number; [key: string]: any }>
+): Array<{
+  id: string;
+  updatedAt: number;
+  logIndex: number;
+  adjustedTimestamp: number;
+  [key: string]: any;
+}> {
+  // Group data by timestamp
+  const groupedByTimestamp = new Map<
+    number,
+    Array<{
+      id: string;
+      updatedAt: number;
+      logIndex: number;
+      [key: string]: any;
+    }>
+  >();
+
+  // Extract log index and group by timestamp
+  const dataWithLogIndex = data.map((item) => ({
+    ...item,
+    logIndex: extractLogIndexFromId(item.id),
+  }));
+
+  dataWithLogIndex.forEach((item) => {
+    const timestamp = item.updatedAt;
+    if (!groupedByTimestamp.has(timestamp)) {
+      groupedByTimestamp.set(timestamp, []);
+    }
+    groupedByTimestamp.get(timestamp)!.push(item);
+  });
+
+  // Distribute timestamps within each group
+  const distributedData: Array<{
+    id: string;
+    updatedAt: number;
+    logIndex: number;
+    adjustedTimestamp: number;
+    [key: string]: any;
+  }> = [];
+
+  groupedByTimestamp.forEach((group, originalTimestamp) => {
+    if (group.length === 1) {
+      // Single item, no need to distribute
+      distributedData.push({
+        ...group[0],
+        adjustedTimestamp: originalTimestamp * 1000, // Convert to milliseconds
+      });
+    } else {
+      // Multiple items, distribute across the second based on log index
+      // Sort by log index to ensure chronological ordering
+      group.sort((a, b) => a.logIndex - b.logIndex);
+
+      const maxLogIndex = Math.max(...group.map((item) => item.logIndex));
+      const minLogIndex = Math.min(...group.map((item) => item.logIndex));
+      const logIndexRange = maxLogIndex - minLogIndex;
+
+      group.forEach((item, index) => {
+        let adjustedTimestamp: number;
+
+        if (logIndexRange === 0) {
+          // All items have the same log index, distribute evenly
+          adjustedTimestamp =
+            originalTimestamp * 1000 + (index / group.length) * 1000;
+        } else {
+          // Distribute based on log index position within the range
+          const relativePosition =
+            (item.logIndex - minLogIndex) / logIndexRange;
+          adjustedTimestamp =
+            originalTimestamp * 1000 + relativePosition * 1000;
+        }
+
+        distributedData.push({
+          ...item,
+          adjustedTimestamp,
+        });
+      });
+    }
+  });
+
+  return distributedData;
+}
 
 async function fetchPriceData() {
   // Function to fetch a single page of data
@@ -565,24 +663,32 @@ export default function PriceComparisonChart() {
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error loading data</div>;
 
-  const redstoneData = data.data.TransparentUpgradeableProxy_ValueUpdate.map(
-    (item: PriceUpdate) => ({
-      x: item.updatedAt * 1000,
+  // Phase 1.2: Apply timestamp distribution to both datasets
+  const distributedRedstoneData = distributeTimestamps(
+    data.data.TransparentUpgradeableProxy_ValueUpdate
+  );
+
+  const distributedChainlinkData = distributeTimestamps(
+    data.data.AccessControlledOCR2Aggregator_AnswerUpdated
+  );
+
+  const redstoneData = distributedRedstoneData
+    .map((item: any) => ({
+      x: item.adjustedTimestamp, // Use adjusted timestamp instead of original
       y: Number(item.value) / 1e8,
       nativeTokenUsed: item.nativeTokenUsed ? Number(item.nativeTokenUsed) : 0,
-    })
-  ).reverse();
+      logIndex: item.logIndex, // Include log index for reference
+    }))
+    .reverse();
 
-  const chainlinkData =
-    data.data.AccessControlledOCR2Aggregator_AnswerUpdated.map(
-      (item: PriceUpdate) => ({
-        x: item.updatedAt * 1000,
-        y: Number(item.current) / 1e8,
-        nativeTokenUsed: item.nativeTokenUsed
-          ? Number(item.nativeTokenUsed)
-          : 0,
-      })
-    ).reverse();
+  const chainlinkData = distributedChainlinkData
+    .map((item: any) => ({
+      x: item.adjustedTimestamp, // Use adjusted timestamp instead of original
+      y: Number(item.current) / 1e8,
+      nativeTokenUsed: item.nativeTokenUsed ? Number(item.nativeTokenUsed) : 0,
+      logIndex: item.logIndex, // Include log index for reference
+    }))
+    .reverse();
 
   const chartData = {
     datasets: [
