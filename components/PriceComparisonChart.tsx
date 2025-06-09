@@ -471,7 +471,7 @@ export default function PriceComparisonChart() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["priceData"],
     queryFn: fetchPriceData,
-    refetchInterval: 1000,
+    refetchInterval: 500,
     staleTime: 0,
     refetchOnWindowFocus: false,
   });
