@@ -192,7 +192,7 @@ const options: ChartOptionsWithZoom = {
   scales: {
     x: {
       type: "time",
-      min: Date.now() - 60 * 1000,
+      min: Date.now() - 20 * 1000,
       max: Date.now(),
       time: {
         unit: "second",
@@ -471,10 +471,10 @@ export default function PriceComparisonChart() {
   React.useEffect(() => {
     if (chartRef.current && data) {
       const now = Date.now();
-      const oneMinuteAgo = now - 60 * 1000;
+      const twentySecondsAgo = now - 20 * 1000;
 
       // Set the time window
-      chartRef.current.options.scales.x.min = oneMinuteAgo;
+      chartRef.current.options.scales.x.min = twentySecondsAgo;
       chartRef.current.options.scales.x.max = now;
 
       chartRef.current.update();
