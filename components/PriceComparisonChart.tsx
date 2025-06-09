@@ -28,6 +28,19 @@ interface PriceUpdate {
   logIndex?: number;
 }
 
+// Phase 2: Animation System Interfaces
+interface AnimationQueueItem {
+  data: any;
+  timestamp: number;
+  type: "redstone" | "chainlink";
+}
+
+interface AnimationState {
+  speed: "off" | "slow" | "medium" | "fast";
+  isPlaying: boolean;
+  queue: AnimationQueueItem[];
+}
+
 interface ChartContext {
   ctx: CanvasRenderingContext2D;
   chartArea: { left: number; top: number; width: number };
@@ -423,6 +436,37 @@ async function fetchPriceData() {
   }
 }
 
+// Phase 2: Animation System - Helper Functions
+function getAnimationDelay(speed: "off" | "slow" | "medium" | "fast"): number {
+  switch (speed) {
+    case "off":
+      return 0;
+    case "slow":
+      return 200;
+    case "medium":
+      return 100;
+    case "fast":
+      return 50;
+    default:
+      return 100;
+  }
+}
+
+function processDataBatch(
+  newData: any[],
+  existingData: any[],
+  maxPoints: number = 1000
+): any[] {
+  // Combine new and existing data
+  const combined = [...existingData, ...newData];
+
+  // Sort by timestamp to maintain chronological order
+  combined.sort((a, b) => a.x - b.x);
+
+  // Keep only the most recent points to prevent memory issues
+  return combined.slice(-maxPoints);
+}
+
 export default function PriceComparisonChart() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["priceData"],
@@ -432,36 +476,205 @@ export default function PriceComparisonChart() {
     refetchOnWindowFocus: false,
   });
 
+  // Phase 2: Animation System State
+  const [animationState, setAnimationState] = React.useState<AnimationState>({
+    speed: "medium",
+    isPlaying: true,
+    queue: [],
+  });
+
+  const [displayedRedstoneData, setDisplayedRedstoneData] = React.useState<
+    any[]
+  >([]);
+  const [displayedChainlinkData, setDisplayedChainlinkData] = React.useState<
+    any[]
+  >([]);
+  const [pendingDataBuffer, setPendingDataBuffer] = React.useState<{
+    redstone: any[];
+    chainlink: any[];
+  }>({
+    redstone: [],
+    chainlink: [],
+  });
+
+  const animationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const lastDataRef = React.useRef<any>(null);
+
   // Add state to track the latest price and animate it
   const [latestPrice, setLatestPrice] = React.useState<number | null>(null);
   const [priceChanged, setPriceChanged] = React.useState(false);
   const [previousPrice, setPreviousPrice] = React.useState<number | null>(null);
 
-  // Add a separate effect to update chart when data changes
-  React.useEffect(() => {
-    if (chartRef.current && data) {
-      // Remove the 'none' parameter to allow normal chart updates
-      chartRef.current.update();
+  // Phase 2: Progressive Animation System
+  const processAnimationQueue = React.useCallback(() => {
+    if (
+      animationState.speed === "off" ||
+      !animationState.isPlaying ||
+      pendingDataBuffer.redstone.length === 0
+    ) {
+      return;
+    }
 
-      // Get latest price data
-      const redstoneUpdates = data.data.TransparentUpgradeableProxy_ValueUpdate;
-      if (redstoneUpdates && redstoneUpdates.length > 0) {
-        const newPrice = Number(redstoneUpdates[0].value) / 1e8;
+    const delay = getAnimationDelay(animationState.speed);
+    const batchSize =
+      animationState.speed === "fast"
+        ? 3
+        : animationState.speed === "medium"
+        ? 2
+        : 1;
 
-        // Only trigger animation when price actually changes
-        if (newPrice !== latestPrice) {
-          setPreviousPrice(latestPrice);
-          setLatestPrice(newPrice);
-          setPriceChanged(true);
+    // Clear any existing timeout
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
+    }
 
-          // Reset animation after a short delay
-          setTimeout(() => {
-            setPriceChanged(false);
-          }, 2000);
+    // Process next batch of points
+    const processNextBatch = () => {
+      setPendingDataBuffer((prev) => {
+        const newRedstoneBuffer = [...prev.redstone];
+        const newChainlinkBuffer = [...prev.chainlink];
+
+        // Take batch from buffer
+        const redstonePointsToAdd = newRedstoneBuffer.splice(0, batchSize);
+        const chainlinkPointsToAdd = newChainlinkBuffer.splice(0, batchSize);
+
+        // Add to displayed data if we have points
+        if (redstonePointsToAdd.length > 0) {
+          setDisplayedRedstoneData((current) =>
+            processDataBatch(redstonePointsToAdd, current, 1000)
+          );
         }
+
+        if (chainlinkPointsToAdd.length > 0) {
+          setDisplayedChainlinkData((current) =>
+            processDataBatch(chainlinkPointsToAdd, current, 1000)
+          );
+        }
+
+        // Schedule next batch if there are more points
+        if (newRedstoneBuffer.length > 0 || newChainlinkBuffer.length > 0) {
+          animationTimeoutRef.current = setTimeout(processNextBatch, delay);
+        }
+
+        return {
+          redstone: newRedstoneBuffer,
+          chainlink: newChainlinkBuffer,
+        };
+      });
+    };
+
+    // Start processing
+    animationTimeoutRef.current = setTimeout(processNextBatch, delay);
+  }, [
+    animationState.speed,
+    animationState.isPlaying,
+    pendingDataBuffer.redstone.length,
+  ]);
+
+  // Phase 2: Enhanced data processing with animation buffer
+  React.useEffect(() => {
+    if (!data) return;
+
+    // Process the raw data
+    const distributedRedstoneData = distributeTimestamps(
+      data.data.TransparentUpgradeableProxy_ValueUpdate
+    );
+    const distributedChainlinkData = distributeTimestamps(
+      data.data.AccessControlledOCR2Aggregator_AnswerUpdated
+    );
+
+    const processedRedstoneData = distributedRedstoneData
+      .map((item: any) => ({
+        x: item.adjustedTimestamp,
+        y: Number(item.value) / 1e8,
+        nativeTokenUsed: item.nativeTokenUsed
+          ? Number(item.nativeTokenUsed)
+          : 0,
+        logIndex: item.logIndex,
+      }))
+      .sort((a, b) => a.x - b.x);
+
+    const processedChainlinkData = distributedChainlinkData
+      .map((item: any) => ({
+        x: item.adjustedTimestamp,
+        y: Number(item.current) / 1e8,
+        nativeTokenUsed: item.nativeTokenUsed
+          ? Number(item.nativeTokenUsed)
+          : 0,
+        logIndex: item.logIndex,
+      }))
+      .sort((a, b) => a.x - b.x);
+
+    // Detect new data points
+    const lastData = lastDataRef.current;
+    let newRedstonePoints: any[] = [];
+    let newChainlinkPoints: any[] = [];
+
+    if (lastData) {
+      // Find points that weren't in the last dataset
+      newRedstonePoints = processedRedstoneData.filter(
+        (newPoint) =>
+          !lastData.redstone.some(
+            (oldPoint: any) =>
+              oldPoint.x === newPoint.x && oldPoint.y === newPoint.y
+          )
+      );
+      newChainlinkPoints = processedChainlinkData.filter(
+        (newPoint) =>
+          !lastData.chainlink.some(
+            (oldPoint: any) =>
+              oldPoint.x === newPoint.x && oldPoint.y === newPoint.y
+          )
+      );
+    } else {
+      // First load - show all data immediately or add to buffer based on animation settings
+      if (animationState.speed === "off") {
+        setDisplayedRedstoneData(processedRedstoneData);
+        setDisplayedChainlinkData(processedChainlinkData);
+      } else {
+        newRedstonePoints = processedRedstoneData;
+        newChainlinkPoints = processedChainlinkData;
       }
     }
-  }, [data, latestPrice]);
+
+    // Add new points to animation buffer
+    if (newRedstonePoints.length > 0 || newChainlinkPoints.length > 0) {
+      setPendingDataBuffer((prev) => ({
+        redstone: [...prev.redstone, ...newRedstonePoints],
+        chainlink: [...prev.chainlink, ...newChainlinkPoints],
+      }));
+    }
+
+    // Update price tracking
+    const redstoneUpdates = data.data.TransparentUpgradeableProxy_ValueUpdate;
+    if (redstoneUpdates && redstoneUpdates.length > 0) {
+      const newPrice = Number(redstoneUpdates[0].value) / 1e8;
+      if (newPrice !== latestPrice) {
+        setPreviousPrice(latestPrice);
+        setLatestPrice(newPrice);
+        setPriceChanged(true);
+        setTimeout(() => setPriceChanged(false), 2000);
+      }
+    }
+
+    // Store current data for next comparison
+    lastDataRef.current = {
+      redstone: processedRedstoneData,
+      chainlink: processedChainlinkData,
+    };
+  }, [data, latestPrice, animationState.speed]);
+
+  // Phase 2: Trigger animation processing when buffer changes
+  React.useEffect(() => {
+    processAnimationQueue();
+  }, [processAnimationQueue]);
+
+  // Phase 2: Update chart when displayed data changes
+  React.useEffect(() => {
+    if (chartRef.current) {
+      chartRef.current.update("none"); // Update without animation since we're handling our own
+    }
+  }, [displayedRedstoneData, displayedChainlinkData]);
 
   const [isStatsExpanded, setIsStatsExpanded] = React.useState(false);
   const chartRef = React.useRef<any>(null);
@@ -663,39 +876,11 @@ export default function PriceComparisonChart() {
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error loading data</div>;
 
-  // Phase 1.2: Apply timestamp distribution to both datasets
-  const distributedRedstoneData = distributeTimestamps(
-    data.data.TransparentUpgradeableProxy_ValueUpdate
-  );
-
-  const distributedChainlinkData = distributeTimestamps(
-    data.data.AccessControlledOCR2Aggregator_AnswerUpdated
-  );
-
-  // Option 1: Global chronological sorting after distribution
-  const redstoneData = distributedRedstoneData
-    .map((item: any) => ({
-      x: item.adjustedTimestamp, // Use adjusted timestamp instead of original
-      y: Number(item.value) / 1e8,
-      nativeTokenUsed: item.nativeTokenUsed ? Number(item.nativeTokenUsed) : 0,
-      logIndex: item.logIndex, // Include log index for reference
-    }))
-    .sort((a, b) => a.x - b.x); // Global chronological sort by adjustedTimestamp
-
-  const chainlinkData = distributedChainlinkData
-    .map((item: any) => ({
-      x: item.adjustedTimestamp, // Use adjusted timestamp instead of original
-      y: Number(item.current) / 1e8,
-      nativeTokenUsed: item.nativeTokenUsed ? Number(item.nativeTokenUsed) : 0,
-      logIndex: item.logIndex, // Include log index for reference
-    }))
-    .sort((a, b) => a.x - b.x); // Global chronological sort by adjustedTimestamp
-
   const chartData = {
     datasets: [
       {
         label: "Redstone",
-        data: redstoneData,
+        data: displayedRedstoneData,
         borderColor: "rgb(255, 99, 132)",
         backgroundColor: "rgba(255, 99, 132, 0.5)",
         pointRadius: 4,
@@ -734,6 +919,44 @@ export default function PriceComparisonChart() {
             Box Zoom
           </button>
         </div>
+
+        {/* Phase 2: Animation Controls */}
+        <div className="flex gap-1.5 w-full sm:w-auto">
+          <button
+            onClick={() =>
+              setAnimationState((prev) => ({
+                ...prev,
+                isPlaying: !prev.isPlaying,
+              }))
+            }
+            className={`flex-1 sm:flex-none px-2 py-1 text-xs sm:text-sm rounded-md transition-all duration-200 shadow-sm ${
+              animationState.isPlaying
+                ? "bg-green-500 text-white shadow-md"
+                : "bg-red-500 text-white shadow-md"
+            }`}
+          >
+            {animationState.isPlaying ? "⏸️" : "▶️"}
+          </button>
+          <select
+            value={animationState.speed}
+            onChange={(e) =>
+              setAnimationState((prev) => ({
+                ...prev,
+                speed: e.target.value as any,
+              }))
+            }
+            className="px-2 py-1 text-xs sm:text-sm rounded-md bg-secondary text-secondary-foreground border"
+          >
+            <option value="off">No Animation</option>
+            <option value="slow">Slow</option>
+            <option value="medium">Medium</option>
+            <option value="fast">Fast</option>
+          </select>
+          <div className="px-2 py-1 text-xs sm:text-sm bg-muted rounded-md">
+            Queue: {pendingDataBuffer.redstone.length}
+          </div>
+        </div>
+
         <div className="flex gap-1.5 w-full sm:w-auto">
           <button
             onClick={() => resetZoom("1m")}
@@ -837,7 +1060,10 @@ export default function PriceComparisonChart() {
       </div>
 
       <div className="mt-2 sm:mt-3 text-xs text-muted-foreground/80 text-center space-y-1">
-        <div className="font-medium">Data updates every second</div>
+        <div className="font-medium">
+          Data updates every second • Animation: {animationState.speed} • Queue:{" "}
+          {pendingDataBuffer.redstone.length} points
+        </div>
         <div className="text-xs space-y-1 opacity-75">
           <p>Pan Mode: Click and drag to move the chart</p>
           <p>Box Zoom: Click and drag to zoom into an area</p>
