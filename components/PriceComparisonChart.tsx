@@ -205,8 +205,7 @@ const options: ChartOptionsWithZoom = {
   scales: {
     x: {
       type: "time",
-      min: Date.now() - 20 * 1000,
-      max: Date.now(),
+      // Remove static min/max - will be set dynamically by continuous scrolling
       time: {
         unit: "second",
         displayFormats: {
@@ -762,6 +761,7 @@ export default function PriceComparisonChart() {
   // Phase 2: Update chart when displayed data changes
   React.useEffect(() => {
     if (chartRef.current) {
+      // Update data without changing time axis (let continuous scrolling handle that)
       chartRef.current.update("none"); // Update without animation since we're handling our own
     }
   }, [displayedRedstoneData, displayedChainlinkData]);
@@ -770,13 +770,52 @@ export default function PriceComparisonChart() {
   const chartRef = React.useRef<any>(null);
   const [zoomMode, setZoomMode] = React.useState<"pan" | "zoom">("pan");
 
-  // Set initial timeframe
+  // Continuous time scrolling
+  const timeScrollIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  // Continuous time scrolling effect
+  React.useEffect(() => {
+    if (!chartRef.current) return;
+
+    // Clear any existing interval
+    if (timeScrollIntervalRef.current) {
+      clearInterval(timeScrollIntervalRef.current);
+    }
+
+    // Update time window continuously every 100ms for smooth scrolling
+    timeScrollIntervalRef.current = setInterval(() => {
+      if (chartRef.current && isTabVisible) {
+        const now = Date.now();
+        const twentySecondsAgo = now - 20 * 1000;
+
+        // Only update if the chart hasn't been manually zoomed
+        const isDefaultTimeRange =
+          !chartRef.current.options.scales.x.min ||
+          now - chartRef.current.options.scales.x.max < 5000; // Within 5 seconds of "live"
+
+        if (isDefaultTimeRange) {
+          chartRef.current.options.scales.x.min = twentySecondsAgo;
+          chartRef.current.options.scales.x.max = now;
+          chartRef.current.update("none"); // Update without animation for smoothness
+        }
+      }
+    }, 100); // Update every 100ms for smooth scrolling
+
+    // Cleanup interval on unmount
+    return () => {
+      if (timeScrollIntervalRef.current) {
+        clearInterval(timeScrollIntervalRef.current);
+      }
+    };
+  }, [isTabVisible]);
+
+  // Set initial timeframe when data first loads
   React.useEffect(() => {
     if (chartRef.current && data) {
       const now = Date.now();
       const twentySecondsAgo = now - 20 * 1000;
 
-      // Set the time window
+      // Set the initial time window
       chartRef.current.options.scales.x.min = twentySecondsAgo;
       chartRef.current.options.scales.x.max = now;
 
