@@ -485,7 +485,7 @@ export default function PriceComparisonChart() {
       window.location.hostname.includes("vercel.app"));
 
   const [animationState, setAnimationState] = React.useState<AnimationState>({
-    speed: isVercel ? "fast" : "medium",
+    speed: isVercel ? "medium" : "medium",
     isPlaying: true,
     queue: [],
   });
