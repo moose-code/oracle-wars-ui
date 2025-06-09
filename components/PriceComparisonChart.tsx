@@ -672,6 +672,7 @@ export default function PriceComparisonChart() {
     data.data.AccessControlledOCR2Aggregator_AnswerUpdated
   );
 
+  // Option 1: Global chronological sorting after distribution
   const redstoneData = distributedRedstoneData
     .map((item: any) => ({
       x: item.adjustedTimestamp, // Use adjusted timestamp instead of original
@@ -679,7 +680,7 @@ export default function PriceComparisonChart() {
       nativeTokenUsed: item.nativeTokenUsed ? Number(item.nativeTokenUsed) : 0,
       logIndex: item.logIndex, // Include log index for reference
     }))
-    .reverse();
+    .sort((a, b) => a.x - b.x); // Global chronological sort by adjustedTimestamp
 
   const chainlinkData = distributedChainlinkData
     .map((item: any) => ({
@@ -688,7 +689,7 @@ export default function PriceComparisonChart() {
       nativeTokenUsed: item.nativeTokenUsed ? Number(item.nativeTokenUsed) : 0,
       logIndex: item.logIndex, // Include log index for reference
     }))
-    .reverse();
+    .sort((a, b) => a.x - b.x); // Global chronological sort by adjustedTimestamp
 
   const chartData = {
     datasets: [
@@ -697,7 +698,13 @@ export default function PriceComparisonChart() {
         data: redstoneData,
         borderColor: "rgb(255, 99, 132)",
         backgroundColor: "rgba(255, 99, 132, 0.5)",
-        pointRadius: 3,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        borderWidth: 1.5,
+        tension: 0.1, // Add slight smoothing to reduce jagged appearance
+        pointBackgroundColor: "rgb(255, 99, 132)",
+        pointBorderColor: "rgba(255, 255, 255, 0.8)",
+        pointBorderWidth: 1,
       },
     ],
   };
