@@ -653,7 +653,7 @@ export default function PriceComparisonChart() {
         setPreviousPrice(latestPrice);
         setLatestPrice(newPrice);
         setPriceChanged(true);
-        setTimeout(() => setPriceChanged(false), 2000);
+        setTimeout(() => setPriceChanged(false), 800);
       }
     }
 
@@ -668,6 +668,15 @@ export default function PriceComparisonChart() {
   React.useEffect(() => {
     processAnimationQueue();
   }, [processAnimationQueue]);
+
+  // Phase 2: Additional effect to trigger price change animation when new data arrives
+  React.useEffect(() => {
+    if (pendingDataBuffer.redstone.length > 0) {
+      setPriceChanged(true);
+      const timeout = setTimeout(() => setPriceChanged(false), 600);
+      return () => clearTimeout(timeout);
+    }
+  }, [pendingDataBuffer.redstone.length]);
 
   // Phase 2: Update chart when displayed data changes
   React.useEffect(() => {
@@ -896,94 +905,6 @@ export default function PriceComparisonChart() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-2 mb-3">
-        <div className="flex gap-1.5 w-full sm:w-auto">
-          <button
-            onClick={() => toggleZoomMode("pan")}
-            className={`flex-1 sm:flex-none px-2 py-1 text-xs sm:text-sm rounded-md transition-all duration-200 shadow-sm ${
-              zoomMode === "pan"
-                ? "bg-primary text-primary-foreground shadow-md scale-105"
-                : "bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:scale-105"
-            }`}
-          >
-            Pan Mode
-          </button>
-          <button
-            onClick={() => toggleZoomMode("zoom")}
-            className={`flex-1 sm:flex-none px-2 py-1 text-xs sm:text-sm rounded-md transition-all duration-200 shadow-sm ${
-              zoomMode === "zoom"
-                ? "bg-primary text-primary-foreground shadow-md scale-105"
-                : "bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:scale-105"
-            }`}
-          >
-            Box Zoom
-          </button>
-        </div>
-
-        {/* Phase 2: Animation Controls */}
-        <div className="flex gap-1.5 w-full sm:w-auto">
-          <button
-            onClick={() =>
-              setAnimationState((prev) => ({
-                ...prev,
-                isPlaying: !prev.isPlaying,
-              }))
-            }
-            className={`flex-1 sm:flex-none px-2 py-1 text-xs sm:text-sm rounded-md transition-all duration-200 shadow-sm ${
-              animationState.isPlaying
-                ? "bg-green-500 text-white shadow-md"
-                : "bg-red-500 text-white shadow-md"
-            }`}
-          >
-            {animationState.isPlaying ? "⏸️" : "▶️"}
-          </button>
-          <select
-            value={animationState.speed}
-            onChange={(e) =>
-              setAnimationState((prev) => ({
-                ...prev,
-                speed: e.target.value as any,
-              }))
-            }
-            className="px-2 py-1 text-xs sm:text-sm rounded-md bg-secondary text-secondary-foreground border"
-          >
-            <option value="off">No Animation</option>
-            <option value="slow">Slow</option>
-            <option value="medium">Medium</option>
-            <option value="fast">Fast</option>
-          </select>
-          <div className="px-2 py-1 text-xs sm:text-sm bg-muted rounded-md">
-            Queue: {pendingDataBuffer.redstone.length}
-          </div>
-        </div>
-
-        <div className="flex gap-1.5 w-full sm:w-auto">
-          <button
-            onClick={() => resetZoom("1m")}
-            className="flex-1 sm:flex-none px-2 py-1 text-xs sm:text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/80 transition-all duration-200 shadow-sm hover:scale-105"
-          >
-            Last Minute
-          </button>
-          <button
-            onClick={() => resetZoom("1h")}
-            className="flex-1 sm:flex-none px-2 py-1 text-xs sm:text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-all duration-200 shadow-sm hover:scale-105"
-          >
-            Last Hour
-          </button>
-          <button
-            onClick={() => resetZoom("24h")}
-            className="flex-1 sm:flex-none px-2 py-1 text-xs sm:text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-all duration-200 shadow-sm hover:scale-105"
-          >
-            Last 24h
-          </button>
-          <button
-            onClick={() => resetZoom()}
-            className="flex-1 sm:flex-none px-2 py-1 text-xs sm:text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-all duration-200 shadow-sm hover:scale-105"
-          >
-            All Data
-          </button>
-        </div>
-      </div>
       <div className="h-[45vh] sm:h-[55vh] relative">
         <Line
           ref={chartRef}
@@ -993,7 +914,7 @@ export default function PriceComparisonChart() {
         />
       </div>
 
-      {/* Price update animation */}
+      {/* Enhanced real-time price display */}
       <div className="mt-4 flex justify-center">
         <div className="relative bg-card/80 backdrop-blur-sm p-4 rounded-lg border shadow-lg w-full max-w-md">
           <div className="text-center">
@@ -1003,7 +924,7 @@ export default function PriceComparisonChart() {
             <div className="flex items-center justify-center gap-3">
               <div
                 className={`text-2xl font-bold transition-all duration-300 ${
-                  priceChanged ? "scale-110 text-primary" : ""
+                  priceChanged ? "scale-110 text-primary glow-effect" : ""
                 }`}
               >
                 $
@@ -1015,8 +936,8 @@ export default function PriceComparisonChart() {
 
               {priceChange && (
                 <div
-                  className={`text-sm font-medium px-2 py-0.5 rounded ${
-                    priceChanged ? "animate-pulse" : ""
+                  className={`text-sm font-medium px-2 py-0.5 rounded transition-all duration-300 ${
+                    priceChanged ? "animate-pulse scale-105" : ""
                   } ${
                     priceChange.isPositive
                       ? "text-green-500 bg-green-500/10"
@@ -1030,46 +951,44 @@ export default function PriceComparisonChart() {
             </div>
           </div>
 
-          {/* Pulsing dots animation to indicate real-time updates */}
+          {/* Enhanced pulsing dots animation */}
           <div className="flex justify-center mt-2 gap-1">
             <div className="text-xs text-muted-foreground/70">
-              Real-time updates
+              Live data stream
             </div>
             <div className="flex gap-1 items-center">
               <div
-                className={`h-1.5 w-1.5 rounded-full ${
-                  priceChanged ? "bg-primary" : "bg-muted"
+                className={`h-1.5 w-1.5 rounded-full transition-all duration-300 ${
+                  priceChanged ? "bg-primary scale-125" : "bg-muted"
                 } 
                 ${priceChanged ? "animate-pulse" : ""}`}
               ></div>
               <div
-                className={`h-1.5 w-1.5 rounded-full ${
-                  priceChanged ? "bg-primary" : "bg-muted"
+                className={`h-1.5 w-1.5 rounded-full transition-all duration-300 ${
+                  priceChanged ? "bg-primary scale-125" : "bg-muted"
                 } 
                 ${priceChanged ? "animate-pulse delay-100" : ""}`}
               ></div>
               <div
-                className={`h-1.5 w-1.5 rounded-full ${
-                  priceChanged ? "bg-primary" : "bg-muted"
+                className={`h-1.5 w-1.5 rounded-full transition-all duration-300 ${
+                  priceChanged ? "bg-primary scale-125" : "bg-muted"
                 } 
                 ${priceChanged ? "animate-pulse delay-200" : ""}`}
               ></div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="mt-2 sm:mt-3 text-xs text-muted-foreground/80 text-center space-y-1">
-        <div className="font-medium">
-          Data updates every second • Animation: {animationState.speed} • Queue:{" "}
-          {pendingDataBuffer.redstone.length} points
-        </div>
-        <div className="text-xs space-y-1 opacity-75">
-          <p>Pan Mode: Click and drag to move the chart</p>
-          <p>Box Zoom: Click and drag to zoom into an area</p>
-          <p className="hidden sm:block">
-            Quick Zoom: Hold Ctrl + Mouse wheel to zoom
-          </p>
+          {/* Real-time update frequency indicator */}
+          <div className="text-center mt-2">
+            <div className="text-xs text-muted-foreground/60">
+              {pendingDataBuffer.redstone.length > 0 && (
+                <span className="inline-flex items-center gap-1">
+                  <div className="h-1 w-1 bg-green-400 rounded-full animate-pulse"></div>
+                  Processing {pendingDataBuffer.redstone.length} updates
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
