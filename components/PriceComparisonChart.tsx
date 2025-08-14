@@ -413,8 +413,8 @@ export default function PriceComparisonChart() {
       },
       chronicle: {
         updates: recent24hChronicle.length,
-        heartbeat: "24h",
-        deviation: "0.5%",
+        heartbeat: "12h",
+        deviation: "1%",
         maxDeviation: maxChronicleDeviation.toFixed(4) + "%",
         totalNativeTokenUsed: totalChronicleNativeToken,
         totalCostUsd: chronicleUsdCost.toFixed(2),
@@ -657,14 +657,14 @@ export default function PriceComparisonChart() {
                     <h4 className="text-sm font-medium">Redstone</h4>
                   </div>
                   <div className="text-[10px] text-muted-foreground flex items-center gap-1 group relative">
-                    <span>(±0.5%, 24h)</span>
+                    <span>(±1%, 12h)</span>
                     <div className="h-3.5 w-3.5 rounded-full border flex items-center justify-center text-[10px] cursor-help">
                       i
                     </div>
                     <div className="absolute invisible group-hover:visible bg-black/80 text-xs text-white p-2 rounded-md -top-[4.5rem] left-0 w-48 backdrop-blur-sm z-20">
                       Updates occur when either:
-                      <br />• 24 hours have passed
-                      <br />• Price changes by ±0.5%
+                      <br />• 12 hours have passed
+                      <br />• Price changes by ±1%
                     </div>
                   </div>
                 </div>
