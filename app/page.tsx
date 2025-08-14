@@ -2,7 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import PriceComparisonChart from "@/components/PriceComparisonChart";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ArrowUpRight } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Image from "next/image";
 
@@ -15,7 +15,19 @@ export default function Home() {
         <main className="max-w-6xl mx-auto space-y-3 sm:space-y-4">
           <div className="flex flex-col items-center relative">
             <div className="absolute right-2 top-2 sm:right-0 sm:top-0">
-              <ThemeToggle />
+              <div className="flex items-center gap-2">
+                <a
+                  href="https://megaeth.oraclewars.xyz"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Opens external website"
+                  className="inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-md bg-card border shadow-sm hover:shadow-md transition-all duration-200"
+                >
+                  <span className="font-medium">MegaEth updates</span>
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                </a>
+                <ThemeToggle />
+              </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-3 animate-in fade-in slide-in-from-bottom-4 duration-1000">
               <div className="relative w-8 h-8 sm:w-10 sm:h-10">
