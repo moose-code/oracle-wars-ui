@@ -216,13 +216,13 @@ async function fetchPriceData() {
     body: JSON.stringify({
       query: `
         query myQuery {
-          TransparentUpgradeableProxy_ValueUpdate(limit: 1000, order_by: {updatedAt: desc}) {
+          RedstoneProxy_ValueUpdate(limit: 1000, order_by: {updatedAt: desc}) {
             id
             updatedAt
             value
             nativeTokenUsed
           }
-          AccessControlledOCR2Aggregator_AnswerUpdated(limit: 1000, order_by: {updatedAt: desc}) {
+          ChainlinkProxy_AnswerUpdated(limit: 1000, order_by: {updatedAt: desc}) {
             id
             updatedAt
             current
@@ -421,7 +421,7 @@ export default function PriceComparisonChart() {
   if (error) return <div>Error loading data</div>;
 
   // Update the data mapping
-  const redstoneData = data.data.TransparentUpgradeableProxy_ValueUpdate.map(
+  const redstoneData = data.data.RedstoneProxy_ValueUpdate.map(
     (item: PriceUpdate) => ({
       x: item.updatedAt * 1000,
       y: Number(item.value) / 1e8,
@@ -429,16 +429,13 @@ export default function PriceComparisonChart() {
     })
   ).reverse();
 
-  const chainlinkData =
-    data.data.AccessControlledOCR2Aggregator_AnswerUpdated.map(
-      (item: PriceUpdate) => ({
-        x: item.updatedAt * 1000,
-        y: Number(item.current) / 1e8,
-        nativeTokenUsed: item.nativeTokenUsed
-          ? Number(item.nativeTokenUsed)
-          : 0,
-      })
-    ).reverse();
+  const chainlinkData = data.data.ChainlinkProxy_AnswerUpdated.map(
+    (item: PriceUpdate) => ({
+      x: item.updatedAt * 1000,
+      y: Number(item.current) / 1e8,
+      nativeTokenUsed: item.nativeTokenUsed ? Number(item.nativeTokenUsed) : 0,
+    })
+  ).reverse();
 
   const chartData = {
     datasets: [
