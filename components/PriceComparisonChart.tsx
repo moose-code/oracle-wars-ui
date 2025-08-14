@@ -24,6 +24,7 @@ interface PriceUpdate {
   updatedAt: number;
   value?: string;
   current?: string;
+  val?: string;
   nativeTokenUsed?: string;
 }
 
@@ -228,6 +229,12 @@ async function fetchPriceData() {
             current
             nativeTokenUsed
           }
+          Chronicle_ETH_USD_3_Poked(limit: 1000, order_by: {updatedAt: desc}) {
+            id
+            updatedAt
+            val
+            nativeTokenUsed
+          }
         }
       `,
     }),
@@ -249,7 +256,11 @@ export default function PriceComparisonChart() {
   const [zoomMode, setZoomMode] = React.useState<"pan" | "zoom">("pan");
 
   // Update the calculateStats function
-  const calculateStats = (redstoneData: any[], chainlinkData: any[]) => {
+  const calculateStats = (
+    redstoneData: any[],
+    chainlinkData: any[],
+    chronicleData: any[]
+  ) => {
     const now = Date.now();
     const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
 
@@ -259,10 +270,14 @@ export default function PriceComparisonChart() {
     const recent24hChainlink = chainlinkData.filter(
       (d) => d.x >= twentyFourHoursAgo
     );
+    const recent24hChronicle = chronicleData.filter(
+      (d) => d.x >= twentyFourHoursAgo
+    );
 
     // Calculate max deviations
     let maxRedstoneDeviation = 0;
     let maxChainlinkDeviation = 0;
+    let maxChronicleDeviation = 0;
 
     // Calculate Redstone max deviation between consecutive points
     for (let i = 1; i < recent24hRedstone.length; i++) {
@@ -284,12 +299,24 @@ export default function PriceComparisonChart() {
       maxChainlinkDeviation = Math.max(maxChainlinkDeviation, deviation);
     }
 
+    // Calculate Chronicle max deviation between consecutive points
+    for (let i = 1; i < recent24hChronicle.length; i++) {
+      const currentPrice = recent24hChronicle[i].y;
+      const previousPrice = recent24hChronicle[i - 1].y;
+      const deviation = Math.abs(
+        ((currentPrice - previousPrice) / previousPrice) * 100
+      );
+      maxChronicleDeviation = Math.max(maxChronicleDeviation, deviation);
+    }
+
     // Calculate gas costs
     // Using the latest price as the ETH price in USD
     const latestRedstonePrice =
       recent24hRedstone.length > 0 ? recent24hRedstone[0].y : 0;
     const latestChainlinkPrice =
       recent24hChainlink.length > 0 ? recent24hChainlink[0].y : 0;
+    const latestChroniclePrice =
+      recent24hChronicle.length > 0 ? recent24hChronicle[0].y : 0;
 
     // Calculate total native token used (in wei)
     const totalRedstoneNativeToken = recent24hRedstone.reduce(
@@ -300,16 +327,22 @@ export default function PriceComparisonChart() {
       (sum, item) => sum + (item.nativeTokenUsed || 0),
       0
     );
+    const totalChronicleNativeToken = recent24hChronicle.reduce(
+      (sum, item) => sum + (item.nativeTokenUsed || 0),
+      0
+    );
 
     // Convert wei to ETH (1 ETH = 10^18 wei)
     const weiToEth = 1e-18;
 
     const redstoneEthCost = totalRedstoneNativeToken * weiToEth;
     const chainlinkEthCost = totalChainlinkNativeToken * weiToEth;
+    const chronicleEthCost = totalChronicleNativeToken * weiToEth;
 
     // Convert ETH cost to USD using the oracle's own price
     const redstoneUsdCost = redstoneEthCost * latestRedstonePrice;
     const chainlinkUsdCost = chainlinkEthCost * latestChainlinkPrice;
+    const chronicleUsdCost = chronicleEthCost * latestChroniclePrice;
 
     // Calculate average cost per update
     const redstoneAvgCost =
@@ -320,10 +353,15 @@ export default function PriceComparisonChart() {
       recent24hChainlink.length > 0
         ? chainlinkUsdCost / recent24hChainlink.length
         : 0;
+    const chronicleAvgCost =
+      recent24hChronicle.length > 0
+        ? chronicleUsdCost / recent24hChronicle.length
+        : 0;
 
     // Find the most expensive update for each oracle
     let maxRedstoneUpdateCost = 0;
     let maxChainlinkUpdateCost = 0;
+    let maxChronicleUpdateCost = 0;
 
     // Calculate cost for each Redstone update and find the maximum
     for (const update of recent24hRedstone) {
@@ -340,6 +378,15 @@ export default function PriceComparisonChart() {
         const ethCost = Number(update.nativeTokenUsed) * weiToEth;
         const usdCost = ethCost * latestChainlinkPrice;
         maxChainlinkUpdateCost = Math.max(maxChainlinkUpdateCost, usdCost);
+      }
+    }
+
+    // Calculate cost for each Chronicle update and find the maximum
+    for (const update of recent24hChronicle) {
+      if (update.nativeTokenUsed) {
+        const ethCost = Number(update.nativeTokenUsed) * weiToEth;
+        const usdCost = ethCost * latestChroniclePrice;
+        maxChronicleUpdateCost = Math.max(maxChronicleUpdateCost, usdCost);
       }
     }
 
@@ -363,6 +410,16 @@ export default function PriceComparisonChart() {
         totalCostUsd: chainlinkUsdCost.toFixed(2),
         avgCostUsd: chainlinkAvgCost.toFixed(2),
         maxUpdateCostUsd: maxChainlinkUpdateCost.toFixed(2),
+      },
+      chronicle: {
+        updates: recent24hChronicle.length,
+        heartbeat: "24h",
+        deviation: "0.5%",
+        maxDeviation: maxChronicleDeviation.toFixed(4) + "%",
+        totalNativeTokenUsed: totalChronicleNativeToken,
+        totalCostUsd: chronicleUsdCost.toFixed(2),
+        avgCostUsd: chronicleAvgCost.toFixed(2),
+        maxUpdateCostUsd: maxChronicleUpdateCost.toFixed(2),
       },
     };
   };
@@ -437,6 +494,14 @@ export default function PriceComparisonChart() {
     })
   ).reverse();
 
+  const chronicleData = data.data.Chronicle_ETH_USD_3_Poked.map(
+    (item: PriceUpdate) => ({
+      x: item.updatedAt * 1000,
+      y: Number(item.val) / 1e8,
+      nativeTokenUsed: item.nativeTokenUsed ? Number(item.nativeTokenUsed) : 0,
+    })
+  ).reverse();
+
   const chartData = {
     datasets: [
       {
@@ -451,6 +516,13 @@ export default function PriceComparisonChart() {
         data: chainlinkData,
         borderColor: "rgb(53, 162, 235)",
         backgroundColor: "rgba(53, 162, 235, 0.5)",
+        pointRadius: 3,
+      },
+      {
+        label: "Chronicle",
+        data: chronicleData,
+        borderColor: "rgb(34, 197, 94)",
+        backgroundColor: "rgba(34, 197, 94, 0.5)",
         pointRadius: 3,
       },
     ],
@@ -516,7 +588,11 @@ export default function PriceComparisonChart() {
       </div>
 
       {/* Stats box */}
-      <div className="absolute bottom-4 left-4 bg-card/90 backdrop-blur-sm border rounded-lg shadow-lg overflow-hidden w-64 sm:w-80">
+      <div
+        className={`absolute bottom-4 left-4 ${
+          isStatsExpanded ? "right-4" : "w-64 sm:w-80"
+        } bg-card/90 backdrop-blur-sm border rounded-lg shadow-lg overflow-hidden transition-all`}
+      >
         <button
           onClick={() => setIsStatsExpanded(!isStatsExpanded)}
           className="w-full px-4 py-2 border-b bg-muted/30 flex items-center justify-between hover:bg-muted/50 transition-colors"
@@ -535,18 +611,34 @@ export default function PriceComparisonChart() {
 
         {/* Compact View */}
         {!isStatsExpanded && (
-          <div className="p-2 grid grid-cols-2 gap-3 text-xs">
+          <div className="p-2 grid grid-cols-3 gap-3 text-xs">
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full bg-[rgb(255,99,132)]" />
               <span className="font-medium">
-                {calculateStats(redstoneData, chainlinkData).redstone.updates}{" "}
+                {
+                  calculateStats(redstoneData, chainlinkData, chronicleData)
+                    .redstone.updates
+                }{" "}
                 updates
               </span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full bg-[rgb(53,162,235)]" />
               <span className="font-medium">
-                {calculateStats(redstoneData, chainlinkData).chainlink.updates}{" "}
+                {
+                  calculateStats(redstoneData, chainlinkData, chronicleData)
+                    .chainlink.updates
+                }{" "}
+                updates
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-[rgb(34,197,94)]" />
+              <span className="font-medium">
+                {
+                  calculateStats(redstoneData, chainlinkData, chronicleData)
+                    .chronicle.updates
+                }{" "}
                 updates
               </span>
             </div>
@@ -556,7 +648,7 @@ export default function PriceComparisonChart() {
         {/* Expanded View */}
         {isStatsExpanded && (
           <div className="p-4 space-y-4">
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-3 gap-6">
               {/* Redstone Stats */}
               <div className="space-y-3">
                 <div className="space-y-1">
@@ -581,8 +673,11 @@ export default function PriceComparisonChart() {
                     <span className="text-muted-foreground">Updates:</span>
                     <span className="font-medium">
                       {
-                        calculateStats(redstoneData, chainlinkData).redstone
-                          .updates
+                        calculateStats(
+                          redstoneData,
+                          chainlinkData,
+                          chronicleData
+                        ).redstone.updates
                       }
                     </span>
                   </div>
@@ -592,8 +687,11 @@ export default function PriceComparisonChart() {
                     </span>
                     <span className="font-medium">
                       {
-                        calculateStats(redstoneData, chainlinkData).redstone
-                          .maxDeviation
+                        calculateStats(
+                          redstoneData,
+                          chainlinkData,
+                          chronicleData
+                        ).redstone.maxDeviation
                       }
                     </span>
                   </div>
@@ -612,8 +710,11 @@ export default function PriceComparisonChart() {
                       <span className="font-medium">
                         $
                         {
-                          calculateStats(redstoneData, chainlinkData).redstone
-                            .totalCostUsd
+                          calculateStats(
+                            redstoneData,
+                            chainlinkData,
+                            chronicleData
+                          ).redstone.totalCostUsd
                         }
                       </span>
                     </div>
@@ -630,8 +731,11 @@ export default function PriceComparisonChart() {
                     <span className="font-medium">
                       $
                       {
-                        calculateStats(redstoneData, chainlinkData).redstone
-                          .avgCostUsd
+                        calculateStats(
+                          redstoneData,
+                          chainlinkData,
+                          chronicleData
+                        ).redstone.avgCostUsd
                       }
                     </span>
                   </div>
@@ -647,8 +751,11 @@ export default function PriceComparisonChart() {
                     <span className="font-medium">
                       $
                       {
-                        calculateStats(redstoneData, chainlinkData).redstone
-                          .maxUpdateCostUsd
+                        calculateStats(
+                          redstoneData,
+                          chainlinkData,
+                          chronicleData
+                        ).redstone.maxUpdateCostUsd
                       }
                     </span>
                   </div>
@@ -679,8 +786,11 @@ export default function PriceComparisonChart() {
                     <span className="text-muted-foreground">Updates:</span>
                     <span className="font-medium">
                       {
-                        calculateStats(redstoneData, chainlinkData).chainlink
-                          .updates
+                        calculateStats(
+                          redstoneData,
+                          chainlinkData,
+                          chronicleData
+                        ).chainlink.updates
                       }
                     </span>
                   </div>
@@ -690,8 +800,11 @@ export default function PriceComparisonChart() {
                     </span>
                     <span className="font-medium">
                       {
-                        calculateStats(redstoneData, chainlinkData).chainlink
-                          .maxDeviation
+                        calculateStats(
+                          redstoneData,
+                          chainlinkData,
+                          chronicleData
+                        ).chainlink.maxDeviation
                       }
                     </span>
                   </div>
@@ -710,8 +823,11 @@ export default function PriceComparisonChart() {
                       <span className="font-medium">
                         $
                         {
-                          calculateStats(redstoneData, chainlinkData).chainlink
-                            .totalCostUsd
+                          calculateStats(
+                            redstoneData,
+                            chainlinkData,
+                            chronicleData
+                          ).chainlink.totalCostUsd
                         }
                       </span>
                     </div>
@@ -728,8 +844,11 @@ export default function PriceComparisonChart() {
                     <span className="font-medium">
                       $
                       {
-                        calculateStats(redstoneData, chainlinkData).chainlink
-                          .avgCostUsd
+                        calculateStats(
+                          redstoneData,
+                          chainlinkData,
+                          chronicleData
+                        ).chainlink.avgCostUsd
                       }
                     </span>
                   </div>
@@ -745,8 +864,124 @@ export default function PriceComparisonChart() {
                     <span className="font-medium">
                       $
                       {
-                        calculateStats(redstoneData, chainlinkData).chainlink
-                          .maxUpdateCostUsd
+                        calculateStats(
+                          redstoneData,
+                          chainlinkData,
+                          chronicleData
+                        ).chainlink.maxUpdateCostUsd
+                      }
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Chronicle Stats */}
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-[rgb(34,197,94)]" />
+                    <h4 className="text-sm font-medium">Chronicle</h4>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground flex items-center gap-1 group relative">
+                    <span>(±0.5%, 24h)</span>
+                    <div className="h-3.5 w-3.5 rounded-full border flex items-center justify-center text-[10px] cursor-help">
+                      i
+                    </div>
+                    <div className="absolute invisible group-hover:visible bg-black/80 text-xs text-white p-2 rounded-md -top-[4.5rem] right-0 w-48 backdrop-blur-sm z-20">
+                      Updates occur when either:
+                      <br />• 24 hours have passed
+                      <br />• Price changes by ±0.5%
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Updates:</span>
+                    <span className="font-medium">
+                      {
+                        calculateStats(
+                          redstoneData,
+                          chainlinkData,
+                          chronicleData
+                        ).chronicle.updates
+                      }
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">
+                      Max Deviation:
+                    </span>
+                    <span className="font-medium">
+                      {
+                        calculateStats(
+                          redstoneData,
+                          chainlinkData,
+                          chronicleData
+                        ).chronicle.maxDeviation
+                      }
+                    </span>
+                  </div>
+
+                  {/* Cost metrics with extra spacing */}
+                  <div className="pt-3 border-t mt-3">
+                    <div className="flex justify-between text-xs">
+                      <div className="flex flex-col">
+                        <span className="text-muted-foreground">
+                          Total Cost (24h):
+                        </span>
+                        <span className="text-[9px] text-muted-foreground/70">
+                          on-chain updates
+                        </span>
+                      </div>
+                      <span className="font-medium">
+                        $
+                        {
+                          calculateStats(
+                            redstoneData,
+                            chainlinkData,
+                            chronicleData
+                          ).chronicle.totalCostUsd
+                        }
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <div className="flex flex-col">
+                      <span className="text-muted-foreground">
+                        Avg Cost/Update:
+                      </span>
+                      <span className="text-[9px] text-muted-foreground/70">
+                        per on-chain tx
+                      </span>
+                    </div>
+                    <span className="font-medium">
+                      $
+                      {
+                        calculateStats(
+                          redstoneData,
+                          chainlinkData,
+                          chronicleData
+                        ).chronicle.avgCostUsd
+                      }
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <div className="flex flex-col">
+                      <span className="text-muted-foreground">
+                        Most Expensive:
+                      </span>
+                      <span className="text-[9px] text-muted-foreground/70">
+                        single update
+                      </span>
+                    </div>
+                    <span className="font-medium">
+                      $
+                      {
+                        calculateStats(
+                          redstoneData,
+                          chainlinkData,
+                          chronicleData
+                        ).chronicle.maxUpdateCostUsd
                       }
                     </span>
                   </div>
