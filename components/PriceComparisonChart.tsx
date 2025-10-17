@@ -255,6 +255,24 @@ function extractLogIndexFromId(id: string): number {
   return 0;
 }
 
+// Normalize various timestamp units (seconds, milliseconds, microseconds) to milliseconds
+function normalizeToMs(rawTimestamp: number | string): number {
+  const numeric =
+    typeof rawTimestamp === "string" ? Number(rawTimestamp) : rawTimestamp;
+  if (!isFinite(numeric)) return Date.now();
+  // Heuristics based on magnitude
+  if (numeric > 1e15) {
+    // microseconds -> milliseconds
+    return Math.floor(numeric / 1000);
+  }
+  if (numeric > 1e12) {
+    // already milliseconds
+    return Math.floor(numeric);
+  }
+  // assume seconds -> milliseconds
+  return Math.floor(numeric * 1000);
+}
+
 // Phase 1.2: Function to distribute timestamps based on log index
 function distributeTimestamps(
   data: Array<{ id: string; updatedAt: number; [key: string]: any }>
@@ -272,22 +290,28 @@ function distributeTimestamps(
       id: string;
       updatedAt: number;
       logIndex: number;
+      normalizedMs: number;
       [key: string]: any;
     }>
   >();
 
   // Extract log index and group by timestamp
-  const dataWithLogIndex = data.map((item) => ({
-    ...item,
-    logIndex: extractLogIndexFromId(item.id),
-  }));
+  const dataWithLogIndex = data.map((item) => {
+    const normalizedMs = normalizeToMs((item as any).updatedAt);
+    return {
+      ...item,
+      logIndex: extractLogIndexFromId(item.id),
+      normalizedMs,
+    };
+  });
 
   dataWithLogIndex.forEach((item) => {
-    const timestamp = item.updatedAt;
-    if (!groupedByTimestamp.has(timestamp)) {
-      groupedByTimestamp.set(timestamp, []);
+    // Group by second to preserve distribution behavior
+    const secondBucket = Math.floor(item.normalizedMs / 1000);
+    if (!groupedByTimestamp.has(secondBucket)) {
+      groupedByTimestamp.set(secondBucket, []);
     }
-    groupedByTimestamp.get(timestamp)!.push(item);
+    groupedByTimestamp.get(secondBucket)!.push(item);
   });
 
   // Distribute timestamps within each group
@@ -299,12 +323,13 @@ function distributeTimestamps(
     [key: string]: any;
   }> = [];
 
-  groupedByTimestamp.forEach((group, originalTimestamp) => {
+  groupedByTimestamp.forEach((group, secondBucket) => {
     if (group.length === 1) {
       // Single item, no need to distribute
       distributedData.push({
         ...group[0],
-        adjustedTimestamp: originalTimestamp * 1000, // Convert to milliseconds
+        // Use normalized milliseconds directly
+        adjustedTimestamp: group[0].normalizedMs,
       });
     } else {
       // Multiple items, distribute across the second based on log index
@@ -314,20 +339,19 @@ function distributeTimestamps(
       const maxLogIndex = Math.max(...group.map((item) => item.logIndex));
       const minLogIndex = Math.min(...group.map((item) => item.logIndex));
       const logIndexRange = maxLogIndex - minLogIndex;
+      const baseMs = secondBucket * 1000; // start of the second in ms
 
       group.forEach((item, index) => {
         let adjustedTimestamp: number;
 
         if (logIndexRange === 0) {
           // All items have the same log index, distribute evenly
-          adjustedTimestamp =
-            originalTimestamp * 1000 + (index / group.length) * 1000;
+          adjustedTimestamp = baseMs + (index / group.length) * 1000;
         } else {
           // Distribute based on log index position within the range
           const relativePosition =
             (item.logIndex - minLogIndex) / logIndexRange;
-          adjustedTimestamp =
-            originalTimestamp * 1000 + relativePosition * 1000;
+          adjustedTimestamp = baseMs + relativePosition * 1000;
         }
 
         distributedData.push({
